@@ -27,7 +27,7 @@ jobs:
           extra-packages: any::pkgdown, any::rmarkdown, local::.
           needs: website
       - name: Render site
-        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
+        run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE, dest_dir = "docs/site")
         shell: Rscript {0}
       - name: Publish static site
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f
