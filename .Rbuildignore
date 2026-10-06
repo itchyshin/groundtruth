@@ -1,8 +1,9 @@
-^\.unlazy$
-^docs$
-^scripts$
+^\.unlazy($|/)
+^docs($|/)
+^scripts($|/)
 ^work$
 ^\.gitignore$
+^\.git$
 ^\.github$
 ^DELIVERY\.md$
 ^CONTRACT\.md$
@@ -14,3 +15,4 @@
 ^LICENSE\.md$
 ^\.ignore$
 ^graft$
+^LOOP($|/)

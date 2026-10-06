@@ -3,10 +3,36 @@ title: "Paired data, replay and honest denominators"
 output: html_document
 ---
 
-A simulation comparison is easier to inspect when every adapter fits the same generated data and every attempt remains visible. `groundtruth` starts with a Gaussian linear example and two coefficient targets.
+A simulation comparison is easier to inspect when every adapter fits the same generated data and every attempt remains visible. `groundtruth` starts with Gaussian linear data and two coefficient targets. An explicit logistic family supports Bernoulli-logit studies.
 
 ```{r setup, include=FALSE}
 library(groundtruth)
+identity_inputs <- c(
+  source_sha = Sys.getenv("GROUNDTRUTH_DOCS_EXPECTED_SOURCE_SHA"),
+  package_path = Sys.getenv("GROUNDTRUTH_DOCS_EXPECTED_PACKAGE_PATH"),
+  package_version = Sys.getenv("GROUNDTRUTH_DOCS_EXPECTED_PACKAGE_VERSION"),
+  receipt_path = Sys.getenv("GROUNDTRUTH_DOCS_IDENTITY_RECEIPT")
+)
+if (any(nzchar(identity_inputs))) {
+  stopifnot(all(nzchar(identity_inputs)))
+  expected_hash <- identity_inputs[["source_sha"]]
+  expected_path <- identity_inputs[["package_path"]]
+  expected_version <- identity_inputs[["package_version"]]
+  receipt_path <- identity_inputs[["receipt_path"]]
+  namespace <- asNamespace("groundtruth")
+  namespace_path <- normalizePath(getNamespaceInfo(namespace, "path"), mustWork = TRUE)
+  stopifnot(identical(namespace_path, normalizePath(expected_path, mustWork = TRUE)))
+  installed_identity <- dget(file.path(namespace_path, "source-identity.R"))
+  stopifnot(identical(installed_identity$source_sha256, expected_hash),
+            identical(installed_identity$package_version, expected_version))
+  writeLines(capture.output(dput(list(
+    namespace_path = namespace_path,
+    source_sha256 = installed_identity$source_sha256,
+    package_version = installed_identity$package_version,
+    checks_passed = TRUE
+  ))), receipt_path)
+  message("DOCS_ARTICLE_SOURCE_IDENTITY_OK")
+}
 ```
 
 ## Generate once, fit separately
@@ -18,9 +44,34 @@ head(study$data)
 study$ledger
 ```
 
-The generator draws `x` and error independently. It constructs `y` from the stated truth without calling an estimator. Each adapter receives a fresh data frame containing only `x` and `y`. The runner stores truth separately for scoring.
+The Gaussian generator draws `x` and error independently. It constructs `y` from the stated truth without calling an estimator. Each adapter receives a fresh data frame containing only `x` and `y`. The runner stores truth separately for scoring.
+
+## Fit a logistic scenario
+
+For Bernoulli outcomes, the model is
+
+$$
+Y_i \sim \operatorname{Bernoulli}(p_i), \qquad
+\operatorname{logit}(p_i)=\alpha+\beta x_i.
+$$
+
+The coefficients are conditional log odds. Select the family and native R adapter explicitly:
+
+```{r logistic-study}
+logistic <- gt_scenario("logistic-small", n = 80, alpha = -0.3, beta = 0.6,
+                        family = "logistic")
+logistic_study <- gt_runstudy(logistic, adapters = gt_glm_adapter(),
+                              reps = 4, seed = "20261006")
+head(logistic_study$ledger)
+```
+
+The native adapter fits `stats::glm()` with a binomial logit link. It requires native GLM convergence, a maximum absolute standardized score no greater than `1e-9`, and a maximum absolute standardized Newton correction to the linear predictor no greater than `1e-9`. Complete or quasi separation means the declared model has no unique finite MLE. A data set with a finite MLE can still fail numerical convergence, so the two conditions are reported separately. Gaussian fits retain Student t intervals; logistic fits use normal Wald intervals at 90% and 95%.
+
+A custom logistic fitter must opt in with `gt_adapter(..., family = "logistic")`. Family compatibility is checked before calling the fitter. A mismatch is recorded as a failed attempt, and the fitter is not invoked. The native adapter is requested with `gt_glm_adapter()`.
 
 ## Keep points when intervals are absent
+
+A custom point-only adapter can illustrate interval accounting:
 
 ```{r custom}
 point_only <- gt_adapter("point-only", function(data) {
@@ -30,8 +81,8 @@ point_only <- gt_adapter("point-only", function(data) {
   gt_result(c(alpha = unname(coefficient["(Intercept)"]),
               beta = unname(coefficient["x"])))
 })
-paired <- gt_runstudy(scenario, list(gt_adapter(), point_only),
-                      reps = 4, seed = "20261004")
+paired <- gt_runstudy(scenario,
+  adapters = list(gt_adapter(), point_only), reps = 4, seed = "20261004")
 summary <- gt_summarize(paired)
 summary[, c("adapter", "target", "level", "attempted", "successful",
             "usable_intervals", "coverage", "covered_per_attempt")]
@@ -53,7 +104,7 @@ Missing intervals at the other level remain unusable. A duplicate target-level r
 
 ## Distinguish two kinds of interval
 
-The default fitted-coefficient intervals use Student t quantiles with `n - 2` degrees of freedom and residual variance `SSE / (n - 2)`. The coverage summary uses a Wilson 95% Monte Carlo interval for the measured coverage fraction. The first describes coefficient uncertainty in one data set; the second describes uncertainty from a finite number of repetitions.
+The default Gaussian fitted-coefficient intervals use Student t quantiles with `n - 2` degrees of freedom and residual variance `SSE / (n - 2)`. Logistic intervals use normal Wald quantiles and final observed information. The coverage summary uses a Wilson 95% Monte Carlo interval for the measured coverage fraction. The first interval describes coefficient uncertainty in one data set; the second describes uncertainty from a finite number of repetitions.
 
 With four repetitions, the Monte Carlo uncertainty is large. This article demonstrates accounting and replay, not a calibration result.
 
@@ -75,6 +126,9 @@ manifest <- dget(file.path(path, "manifest.R"))
 list.files(path)
 ```
 
-A manifest is an audit record. `dget()` should be used only on a trusted manifest, because it evaluates R expressions. The exported manifest contains data rather than adapter code. It records a SHA256 for the sole R implementation file that produced the study and a separate exporter hash. This source identity does not include custom adapter code or the whole documentation. Read CSV columns according to its schemas, preserving seed strings as character.
+A manifest is an audit record. `dget()` should be used only on a trusted manifest, because it evaluates R expressions. The exported manifest contains data rather than adapter code. It records a SHA256 for the sole R implementation file that produced the study and a separate exporter hash. This source identity does not include custom adapter code or the whole documentation. Read CSV columns according to their schemas, preserving seed strings as character.
 
-This implementation does NOT cover other response families, random effects or external inference engines. No promise is made that R and Julia produce equal draws from equal master seed labels.
+R and Julia use distinct streams, so compare them on identical frozen CSV inputs. The
+fixed-effect fixture results do not establish calibration or package-wide parity. R 4.6.0
+checked version 0.0.0.9000: 346 assertions passed with `Status: OK`; the pkgdown 2.2.0
+preview rendered. These checks support the declared fixed-effect workflow.

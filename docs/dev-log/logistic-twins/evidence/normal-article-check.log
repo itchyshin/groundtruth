@@ -1,0 +1,3 @@
+[WARNING] Deprecated: --mathjax. Use --math-method=mathjax[:URL] instead.
+NORMAL_ARTICLE_RENDER_OK
+NUMERICAL_SECONDS 1.747 CHARGED_TOTAL 205.848

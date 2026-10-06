@@ -2,16 +2,16 @@ url: https://itchyshin.github.io/groundtruth/
 destination: docs/site
 template:
   bootstrap: 5
-  bootswatch: flatly
+  bootswatch: cerulean
 home:
-  title: Reproducible Gaussian study comparisons
+  title: Reproducible Gaussian and logistic study comparisons
 navbar:
   structure:
     left: [intro, reference, articles]
     right: [search, github]
 reference:
 - title: Define a comparison
-  contents: [gt_scenario, gt_adapter, gt_result]
+  contents: [gt_scenario, gt_adapter, gt_glm_adapter, gt_result]
 - title: Run and inspect
   contents: [gt_runstudy, gt_replay, gt_summarize, gt_export]
 articles:

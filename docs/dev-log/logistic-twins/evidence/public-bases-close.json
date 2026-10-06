@@ -1,0 +1,7 @@
+{
+  "repository": "itchyshin/groundtruth",
+  "public_main_sha": "f44a0bfe29d34f081f7eaca3d07b0fbf93a3bf2f",
+  "method": "gh api repos/itchyshin/groundtruth/commits/main --jq .sha",
+  "result": "matched approved public base",
+  "checked_utc": "2026-10-06T17:49:10.982511+00:00"
+}

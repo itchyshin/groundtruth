@@ -2,9 +2,16 @@
 % Please edit documentation in R/groundtruth.R
 \name{gt_scenario}
 \alias{gt_scenario}
-\title{Define a Gaussian simulation scenario}
+\title{Define a simulation scenario}
 \usage{
-gt_scenario(id, n = 100L, alpha = 1, beta = 0.7, sigma = 1.2)
+gt_scenario(
+  id,
+  n = 100L,
+  alpha = 1,
+  beta = 0.7,
+  sigma = if (identical(family, "logistic")) NULL else 1.2,
+  family = "gaussian"
+)
 }
 \arguments{
 \item{id}{A non-empty scalar character identifier.}
@@ -15,14 +22,18 @@ gt_scenario(id, n = 100L, alpha = 1, beta = 0.7, sigma = 1.2)
 
 \item{beta}{Slope used to generate data.}
 
-\item{sigma}{Positive residual standard deviation.}
+\item{sigma}{Positive residual standard deviation for Gaussian scenarios;
+omitted logistic scenarios use no sigma.}
+
+\item{family}{Either \code{"gaussian"} or \code{"logistic"}.}
 }
 \value{
 A \code{gt_scenario} object.
 }
 \description{
-Define a Gaussian simulation scenario
+Define a simulation scenario
 }
 \examples{
 gt_scenario("small", n = 20L)
+gt_scenario("binary", family = "logistic")
 }
