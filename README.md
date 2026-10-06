@@ -2,12 +2,10 @@
 
 `groundtruth` runs small simulation studies with a record of every fit attempt. It
 separates data generation from fitting, gives adapters paired observations, and reports
-the denominators behind interval coverage. The established public workflow is Gaussian
-linear regression. This local candidate adds fixed-effect logistic scenarios and a
-native R adapter. R 4.6.0 checked development version 0.0.0.9000: 346 assertions
+the denominators behind interval coverage. It supports Gaussian linear regression
+and fixed-effect logistic scenarios through a native R adapter. R 4.6.0 checked development version 0.0.0.9000: 346 assertions
 passed with `Status: OK` and no NOTE. The pkgdown 2.2.0 preview rendered and its link
-checks passed. The candidate remains local and uncommitted; publication approval has
-not been given.
+checks passed.
 
 ## Gaussian model
 
@@ -151,13 +149,10 @@ bounded numerical comparisons use the same frozen CSV bytes, not matched seed la
 Agreement on those fixed-effect fixtures is not calibration evidence or package-wide
 parity.
 
-The established R site remains public with Gaussian material. The logistic candidate
-is local and unpublished. The code is uncommitted, and publication approval has not
-been given. The URLs in
-package metadata identify the intended source, issue tracker and documentation
-endpoints; a URL field alone does not establish the publication status of new content.
+The [R documentation](https://itchyshin.github.io/groundtruth/) includes Gaussian and
+logistic workflows. Source and issue links are recorded in the package metadata.
 
 For source maintenance, run `Rscript --vanilla tools/update-source-identity.R` after
 changing `R/groundtruth.R` or `DESCRIPTION`, before tests and package build. This
 refreshes the implementation hash and package version bundled in export provenance.
-The development package version remains unchanged for this candidate.
+The development package version remains 0.0.0.9000.

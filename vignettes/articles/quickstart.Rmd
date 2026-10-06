@@ -3,7 +3,7 @@ title: "Paired data, replay and honest denominators"
 output: html_document
 ---
 
-A simulation comparison is easier to inspect when every adapter fits the same generated data and every attempt remains visible. `groundtruth` starts with Gaussian linear data and two coefficient targets. This local candidate adds an explicit logistic family.
+A simulation comparison is easier to inspect when every adapter fits the same generated data and every attempt remains visible. `groundtruth` starts with Gaussian linear data and two coefficient targets. An explicit logistic family supports Bernoulli-logit studies.
 
 ```{r setup, include=FALSE}
 library(groundtruth)
@@ -131,5 +131,4 @@ A manifest is an audit record. `dget()` should be used only on a trusted manifes
 R and Julia use distinct streams, so compare them on identical frozen CSV inputs. The
 fixed-effect fixture results do not establish calibration or package-wide parity. R 4.6.0
 checked version 0.0.0.9000: 346 assertions passed with `Status: OK`; the pkgdown 2.2.0
-preview rendered. The candidate remains local and uncommitted. Publication approval has
-not been given.
+preview rendered. These checks support the declared fixed-effect workflow.
