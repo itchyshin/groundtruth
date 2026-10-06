@@ -2,9 +2,9 @@ url: https://itchyshin.github.io/groundtruth/
 destination: docs/site
 template:
   bootstrap: 5
-  bootswatch: flatly
+  bootswatch: cerulean
 home:
-  title: Reproducible Gaussian study comparisons
+  title: Reproducible Gaussian and logistic study comparisons
 navbar:
   structure:
     left: [intro, reference, articles]
