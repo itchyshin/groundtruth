@@ -6,6 +6,11 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>Paired data, replay and honest denominators • groundtruth</title>
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="../favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="../favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png">
+<link rel="icon" sizes="any" href="../favicon.ico">
+<link rel="manifest" href="../site.webmanifest">
 <script src="../deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="../deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="../deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="../deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
@@ -54,8 +59,7 @@
 
 <div class="row">
   <main id="main" class="col-md-9"><div class="page-header">
-
-      <h1>Paired data, replay and honest denominators</h1>
+      <img src="../logo.png" class="logo" alt=""><h1>Paired data, replay and honest denominators</h1>
             
       
       <small class="dont-index">Source: <a href="https://github.com/itchyshin/groundtruth/blob/main/vignettes/articles/quickstart.Rmd" class="external-link"><code>vignettes/articles/quickstart.Rmd</code></a></small>
@@ -66,8 +70,9 @@
     
 <p>A simulation comparison is easier to inspect when every adapter fits
 the same generated data and every attempt remains visible.
-<code>groundtruth</code> starts with a Gaussian linear example and two
-coefficient targets.</p>
+<code>groundtruth</code> starts with Gaussian linear data and two
+coefficient targets. An explicit logistic family supports
+Bernoulli-logit studies.</p>
 <div class="section level2">
 <h2 id="generate-once-fit-separately">Generate once, fit separately<a class="anchor" aria-label="anchor" href="#generate-once-fit-separately"></a>
 </h2>
@@ -89,16 +94,53 @@ coefficient targets.</p>
 <span><span class="co">## 2    small   2      lm 1098587371  446531788     ok        </span></span>
 <span><span class="co">## 3    small   3      lm    8490282 1951231743     ok        </span></span>
 <span><span class="co">## 4    small   4      lm  431958131  670723386     ok</span></span></code></pre>
-<p>The generator draws <code>x</code> and error independently. It
-constructs <code>y</code> from the stated truth without calling an
+<p>The Gaussian generator draws <code>x</code> and error independently.
+It constructs <code>y</code> from the stated truth without calling an
 estimator. Each adapter receives a fresh data frame containing only
 <code>x</code> and <code>y</code>. The runner stores truth separately
 for scoring.</p>
 </div>
 <div class="section level2">
+<h2 id="fit-a-logistic-scenario">Fit a logistic scenario<a class="anchor" aria-label="anchor" href="#fit-a-logistic-scenario"></a>
+</h2>
+<p>For Bernoulli outcomes, the model is</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>Y</mi><mi>i</mi></msub><mo>∼</mo><mrow><mi mathvariant="normal">Bernoulli</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><mrow><mi mathvariant="normal">logit</mi><mo>⁡</mo></mrow><mo stretchy="false" form="prefix">(</mo><msub><mi>p</mi><mi>i</mi></msub><mo stretchy="false" form="postfix">)</mo><mo>=</mo><mi>α</mi><mo>+</mo><mi>β</mi><msub><mi>x</mi><mi>i</mi></msub><mi>.</mi></mrow><annotation encoding="application/x-tex">
+Y_i \sim \operatorname{Bernoulli}(p_i), \qquad
+\operatorname{logit}(p_i)=\alpha+\beta x_i.
+</annotation></semantics></math></p>
+<p>The coefficients are conditional log odds. Select the family and
+native R adapter explicitly:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">logistic</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_scenario.html">gt_scenario</a></span><span class="op">(</span><span class="st">"logistic-small"</span>, n <span class="op">=</span> <span class="fl">80</span>, alpha <span class="op">=</span> <span class="op">-</span><span class="fl">0.3</span>, beta <span class="op">=</span> <span class="fl">0.6</span>,</span>
+<span>                        family <span class="op">=</span> <span class="st">"logistic"</span><span class="op">)</span></span>
+<span><span class="va">logistic_study</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_runstudy.html">gt_runstudy</a></span><span class="op">(</span><span class="va">logistic</span>, adapters <span class="op">=</span> <span class="fu"><a href="../reference/gt_glm_adapter.html">gt_glm_adapter</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>                              reps <span class="op">=</span> <span class="fl">4</span>, seed <span class="op">=</span> <span class="st">"20261006"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/head.html" class="external-link">head</a></span><span class="op">(</span><span class="va">logistic_study</span><span class="op">$</span><span class="va">ledger</span><span class="op">)</span></span></code></pre></div>
+<pre><code><span><span class="co">##         scenario rep adapter data_seed   fit_seed status message</span></span>
+<span><span class="co">## 1 logistic-small   1     glm 443429559  684706644     ok        </span></span>
+<span><span class="co">## 2 logistic-small   2     glm 810666579 1863808595     ok        </span></span>
+<span><span class="co">## 3 logistic-small   3     glm   6869322 1148310148     ok        </span></span>
+<span><span class="co">## 4 logistic-small   4     glm 271901768 1238444602     ok</span></span></code></pre>
+<p>The native adapter fits <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> with a binomial
+logit link. It requires native GLM convergence, a maximum absolute
+standardized score no greater than <code>1e-9</code>, and a maximum
+absolute standardized Newton correction to the linear predictor no
+greater than <code>1e-9</code>. Complete or quasi separation means the
+declared model has no unique finite MLE. A data set with a finite MLE
+can still fail numerical convergence, so the two conditions are reported
+separately. Gaussian fits retain Student t intervals; logistic fits use
+normal Wald intervals at 90% and 95%.</p>
+<p>A custom logistic fitter must opt in with
+<code>gt_adapter(..., family = "logistic")</code>. Family compatibility
+is checked before calling the fitter. A mismatch is recorded as a failed
+attempt, and the fitter is not invoked. The native adapter is requested
+with <code><a href="../reference/gt_glm_adapter.html">gt_glm_adapter()</a></code>.</p>
+</div>
+<div class="section level2">
 <h2 id="keep-points-when-intervals-are-absent">Keep points when intervals are absent<a class="anchor" aria-label="anchor" href="#keep-points-when-intervals-are-absent"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<p>A custom point-only adapter can illustrate interval accounting:</p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">point_only</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_adapter.html">gt_adapter</a></span><span class="op">(</span><span class="st">"point-only"</span>, <span class="kw">function</span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">fitted</span> <span class="op">&lt;-</span> <span class="fu">stats</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/r/stats/lm.html" class="external-link">lm</a></span><span class="op">(</span><span class="va">y</span> <span class="op">~</span> <span class="va">x</span>, data <span class="op">=</span> <span class="va">data</span>, na.action <span class="op">=</span> <span class="fu">stats</span><span class="fu">::</span><span class="va"><a href="https://rdrr.io/r/stats/na.fail.html" class="external-link">na.fail</a></span>,</span>
 <span>                      singular.ok <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
@@ -106,8 +148,8 @@ for scoring.</p>
 <span>  <span class="fu"><a href="../reference/gt_result.html">gt_result</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>alpha <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">coefficient</span><span class="op">[</span><span class="st">"(Intercept)"</span><span class="op">]</span><span class="op">)</span>,</span>
 <span>              beta <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/unname.html" class="external-link">unname</a></span><span class="op">(</span><span class="va">coefficient</span><span class="op">[</span><span class="st">"x"</span><span class="op">]</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
-<span><span class="va">paired</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_runstudy.html">gt_runstudy</a></span><span class="op">(</span><span class="va">scenario</span>, <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="../reference/gt_adapter.html">gt_adapter</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">point_only</span><span class="op">)</span>,</span>
-<span>                      reps <span class="op">=</span> <span class="fl">4</span>, seed <span class="op">=</span> <span class="st">"20261004"</span><span class="op">)</span></span>
+<span><span class="va">paired</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_runstudy.html">gt_runstudy</a></span><span class="op">(</span><span class="va">scenario</span>,</span>
+<span>  adapters <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="../reference/gt_adapter.html">gt_adapter</a></span><span class="op">(</span><span class="op">)</span>, <span class="va">point_only</span><span class="op">)</span>, reps <span class="op">=</span> <span class="fl">4</span>, seed <span class="op">=</span> <span class="st">"20261004"</span><span class="op">)</span></span>
 <span><span class="va">summary</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_summarize.html">gt_summarize</a></span><span class="op">(</span><span class="va">paired</span><span class="op">)</span></span>
 <span><span class="va">summary</span><span class="op">[</span>, <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"adapter"</span>, <span class="st">"target"</span>, <span class="st">"level"</span>, <span class="st">"attempted"</span>, <span class="st">"successful"</span>,</span>
 <span>            <span class="st">"usable_intervals"</span>, <span class="st">"coverage"</span>, <span class="st">"covered_per_attempt"</span><span class="op">)</span><span class="op">]</span></span></code></pre></div>
@@ -134,7 +176,7 @@ intervals are unusable, so conditional coverage is <code>NA</code> and
 covered per attempt is zero. A failed fit rejects both coefficient
 targets. Failure counts remain in the attempt denominator.</p>
 <p>An interval result uses these exact column names:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/gt_result.html">gt_result</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>alpha <span class="op">=</span> <span class="fl">1</span>, beta <span class="op">=</span> <span class="fl">2</span><span class="op">)</span>,</span>
 <span>          intervals <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>target <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"alpha"</span>, <span class="st">"beta"</span><span class="op">)</span>,</span>
 <span>                                 level <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.95</span>, <span class="fl">0.95</span><span class="op">)</span>,</span>
@@ -168,12 +210,13 @@ points.</p>
 <div class="section level2">
 <h2 id="distinguish-two-kinds-of-interval">Distinguish two kinds of interval<a class="anchor" aria-label="anchor" href="#distinguish-two-kinds-of-interval"></a>
 </h2>
-<p>The default fitted-coefficient intervals use Student t quantiles with
-<code>n - 2</code> degrees of freedom and residual variance
-<code>SSE / (n - 2)</code>. The coverage summary uses a Wilson 95% Monte
-Carlo interval for the measured coverage fraction. The first describes
-coefficient uncertainty in one data set; the second describes
-uncertainty from a finite number of repetitions.</p>
+<p>The default Gaussian fitted-coefficient intervals use Student t
+quantiles with <code>n - 2</code> degrees of freedom and residual
+variance <code>SSE / (n - 2)</code>. Logistic intervals use normal Wald
+quantiles and final observed information. The coverage summary uses a
+Wilson 95% Monte Carlo interval for the measured coverage fraction. The
+first interval describes coefficient uncertainty in one data set; the
+second describes uncertainty from a finite number of repetitions.</p>
 <p>With four repetitions, the Monte Carlo uncertainty is large. This
 article demonstrates accounting and replay, not a calibration
 result.</p>
@@ -181,7 +224,7 @@ result.</p>
 <div class="section level2">
 <h2 id="retain-replay-information">Retain replay information<a class="anchor" aria-label="anchor" href="#retain-replay-information"></a>
 </h2>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">replayed</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_replay.html">gt_replay</a></span><span class="op">(</span><span class="va">paired</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">paired</span><span class="op">$</span><span class="va">data</span>, <span class="va">replayed</span><span class="op">$</span><span class="va">data</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">paired</span><span class="op">$</span><span class="va">targets</span>, <span class="va">replayed</span><span class="op">$</span><span class="va">targets</span><span class="op">)</span><span class="op">)</span></span>
@@ -211,7 +254,7 @@ result.</p>
 Stateless deterministic adapters replay exactly in the same environment.
 For adapters that read external files or mutate captured state, preserve
 those inputs and reset that state yourself.</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">path</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempfile</a></span><span class="op">(</span><span class="st">"groundtruth-export-"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/gt_export.html">gt_export</a></span><span class="op">(</span><span class="va">paired</span>, <span class="va">path</span><span class="op">)</span></span>
 <span><span class="va">manifest</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/dput.html" class="external-link">dget</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="va">path</span>, <span class="st">"manifest.R"</span><span class="op">)</span><span class="op">)</span></span>
@@ -224,10 +267,13 @@ exported manifest contains data rather than adapter code. It records a
 SHA256 for the sole R implementation file that produced the study and a
 separate exporter hash. This source identity does not include custom
 adapter code or the whole documentation. Read CSV columns according to
-its schemas, preserving seed strings as character.</p>
-<p>This implementation does NOT cover other response families, random
-effects or external inference engines. No promise is made that R and
-Julia produce equal draws from equal master seed labels.</p>
+their schemas, preserving seed strings as character.</p>
+<p>R and Julia use distinct streams, so compare them on identical frozen
+CSV inputs. The fixed-effect fixture results do not establish
+calibration or package-wide parity. R 4.6.0 checked version 0.0.0.9000:
+346 assertions passed with <code>Status: OK</code>; the pkgdown 2.2.0
+preview rendered. These checks support the declared fixed-effect
+workflow.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

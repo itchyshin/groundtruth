@@ -1,6 +1,6 @@
-# Run a reproducible Gaussian simulation study
+# Run a reproducible Gaussian or logistic simulation study
 
-Run a reproducible Gaussian simulation study
+Run a reproducible Gaussian or logistic simulation study
 
 ## Usage
 

@@ -2,7 +2,8 @@
 
 A simulation comparison is easier to inspect when every adapter fits the
 same generated data and every attempt remains visible. `groundtruth`
-starts with a Gaussian linear example and two coefficient targets.
+starts with Gaussian linear data and two coefficient targets. An
+explicit logistic family supports Bernoulli-logit studies.
 
 ## Generate once, fit separately
 
@@ -32,12 +33,58 @@ study$ledger
     ## 3    small   3      lm    8490282 1951231743     ok        
     ## 4    small   4      lm  431958131  670723386     ok
 
-The generator draws `x` and error independently. It constructs `y` from
-the stated truth without calling an estimator. Each adapter receives a
-fresh data frame containing only `x` and `y`. The runner stores truth
-separately for scoring.
+The Gaussian generator draws `x` and error independently. It constructs
+`y` from the stated truth without calling an estimator. Each adapter
+receives a fresh data frame containing only `x` and `y`. The runner
+stores truth separately for scoring.
+
+## Fit a logistic scenario
+
+For Bernoulli outcomes, the model is
+
+``` math
+Y_i \sim \operatorname{Bernoulli}(p_i), \qquad
+\operatorname{logit}(p_i)=\alpha+\beta x_i.
+```
+
+The coefficients are conditional log odds. Select the family and native
+R adapter explicitly:
+
+``` r
+
+logistic <- gt_scenario("logistic-small", n = 80, alpha = -0.3, beta = 0.6,
+                        family = "logistic")
+logistic_study <- gt_runstudy(logistic, adapters = gt_glm_adapter(),
+                              reps = 4, seed = "20261006")
+head(logistic_study$ledger)
+```
+
+    ##         scenario rep adapter data_seed   fit_seed status message
+    ## 1 logistic-small   1     glm 443429559  684706644     ok        
+    ## 2 logistic-small   2     glm 810666579 1863808595     ok        
+    ## 3 logistic-small   3     glm   6869322 1148310148     ok        
+    ## 4 logistic-small   4     glm 271901768 1238444602     ok
+
+The native adapter fits
+[`stats::glm()`](https://rdrr.io/r/stats/glm.html) with a binomial logit
+link. It requires native GLM convergence, a maximum absolute
+standardized score no greater than `1e-9`, and a maximum absolute
+standardized Newton correction to the linear predictor no greater than
+`1e-9`. Complete or quasi separation means the declared model has no
+unique finite MLE. A data set with a finite MLE can still fail numerical
+convergence, so the two conditions are reported separately. Gaussian
+fits retain Student t intervals; logistic fits use normal Wald intervals
+at 90% and 95%.
+
+A custom logistic fitter must opt in with
+`gt_adapter(..., family = "logistic")`. Family compatibility is checked
+before calling the fitter. A mismatch is recorded as a failed attempt,
+and the fitter is not invoked. The native adapter is requested with
+[`gt_glm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_glm_adapter.md).
 
 ## Keep points when intervals are absent
+
+A custom point-only adapter can illustrate interval accounting:
 
 ``` r
 
@@ -48,8 +95,8 @@ point_only <- gt_adapter("point-only", function(data) {
   gt_result(c(alpha = unname(coefficient["(Intercept)"]),
               beta = unname(coefficient["x"])))
 })
-paired <- gt_runstudy(scenario, list(gt_adapter(), point_only),
-                      reps = 4, seed = "20261004")
+paired <- gt_runstudy(scenario,
+  adapters = list(gt_adapter(), point_only), reps = 4, seed = "20261004")
 summary <- gt_summarize(paired)
 summary[, c("adapter", "target", "level", "attempted", "successful",
             "usable_intervals", "coverage", "covered_per_attempt")]
@@ -117,12 +164,13 @@ reversed bounds also exclude that interval while retaining valid points.
 
 ## Distinguish two kinds of interval
 
-The default fitted-coefficient intervals use Student t quantiles with
-`n - 2` degrees of freedom and residual variance `SSE / (n - 2)`. The
-coverage summary uses a Wilson 95% Monte Carlo interval for the measured
-coverage fraction. The first describes coefficient uncertainty in one
-data set; the second describes uncertainty from a finite number of
-repetitions.
+The default Gaussian fitted-coefficient intervals use Student t
+quantiles with `n - 2` degrees of freedom and residual variance
+`SSE / (n - 2)`. Logistic intervals use normal Wald quantiles and final
+observed information. The coverage summary uses a Wilson 95% Monte Carlo
+interval for the measured coverage fraction. The first interval
+describes coefficient uncertainty in one data set; the second describes
+uncertainty from a finite number of repetitions.
 
 With four repetitions, the Monte Carlo uncertainty is large. This
 article demonstrates accounting and replay, not a calibration result.
@@ -181,9 +229,11 @@ trusted manifest, because it evaluates R expressions. The exported
 manifest contains data rather than adapter code. It records a SHA256 for
 the sole R implementation file that produced the study and a separate
 exporter hash. This source identity does not include custom adapter code
-or the whole documentation. Read CSV columns according to its schemas,
+or the whole documentation. Read CSV columns according to their schemas,
 preserving seed strings as character.
 
-This implementation does NOT cover other response families, random
-effects or external inference engines. No promise is made that R and
-Julia produce equal draws from equal master seed labels.
+R and Julia use distinct streams, so compare them on identical frozen
+CSV inputs. The fixed-effect fixture results do not establish
+calibration or package-wide parity. R 4.6.0 checked version 0.0.0.9000:
+346 assertions passed with `Status: OK`; the pkgdown 2.2.0 preview
+rendered. These checks support the declared fixed-effect workflow.

@@ -5,7 +5,7 @@ Define a fitting adapter
 ## Usage
 
 ``` r
-gt_adapter(id = "lm", fit = NULL, metadata = list())
+gt_adapter(id = "lm", fit = NULL, metadata = list(), family = "gaussian")
 ```
 
 ## Arguments
@@ -17,28 +17,29 @@ gt_adapter(id = "lm", fit = NULL, metadata = list())
 - fit:
 
   A function accepting one fresh data frame with exactly `x` and `y`, or
-  `NULL` for the default Gaussian linear-model adapter. Truth is
-  withheld.
+  `NULL` for the default fitter of the declared family.
 
 - metadata:
 
   A list of descriptive metadata.
 
+- family:
+
+  Either `"gaussian"` or `"logistic"`.
+
 ## Value
 
-A `gt_adapter` object with `id`, `fit` and descriptive `metadata`.
+A `gt_adapter` object with its declared family.
 
 ## Details
 
-The default uses
-`stats::lm(y ~ x, na.action = stats::na.fail, singular.ok = FALSE)` on
-finite, equal-length, rank-two data with more than two observations.
-`(Intercept)` maps to `alpha` and `x` to `beta`. Residual variance is
-SSE / (n - 2). It returns two-sided 90% and 95% Student t intervals with
-n - 2 degrees of freedom. Diagnostics include residual variance,
-coefficient covariance, standard errors, fitted values and residuals.
-Custom fitting functions use their separately allocated global R RNG
-stream.
+The default Gaussian fitter uses
+[`stats::lm`](https://rdrr.io/r/stats/lm.html) with an intercept and
+slope, estimates residual variance as SSE / (n - 2), and returns 90% and
+95% Student t intervals. Logistic fitters must be supplied explicitly or
+created with
+[`gt_glm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_glm_adapter.md).
+Truth is withheld from every fitter.
 
 ## Examples
 
@@ -79,11 +80,14 @@ gt_adapter()
 #>         covariance = covariance, se = se, predictions = stats::fitted(fit), 
 #>         residuals = stats::residuals(fit)))
 #> }
-#> <bytecode: 0x55e94b694990>
+#> <bytecode: 0x55d62dc77b60>
 #> <environment: namespace:groundtruth>
 #> 
 #> $metadata
 #> list()
+#> 
+#> $family
+#> [1] "gaussian"
 #> 
 #> attr(,"class")
 #> [1] "gt_adapter"

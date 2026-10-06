@@ -5,14 +5,20 @@
 <meta charset="utf-8">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-<title>Reproducible Gaussian study comparisons • groundtruth</title>
+<title>Reproducible Gaussian and logistic study comparisons • groundtruth</title>
+<!-- favicons --><link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
+<link rel="icon" type="”image/svg+xml”" href="favicon.svg">
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" sizes="any" href="favicon.ico">
+<link rel="manifest" href="site.webmanifest">
 <script src="deps/jquery-3.6.0/jquery-3.6.0.min.js"></script><meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <link href="deps/bootstrap-5.3.8/bootstrap.min.css" rel="stylesheet">
 <script src="deps/bootstrap-5.3.8/bootstrap.bundle.min.js"></script><link href="deps/font-awesome-6.5.2/css/all.min.css" rel="stylesheet">
 <link href="deps/font-awesome-6.5.2/css/v4-shims.min.css" rel="stylesheet">
-<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Reproducible Gaussian study comparisons">
-<meta name="description" content="Generate independent Gaussian linear data, compare fitting adapters, retain every attempt, replay recorded random streams, and export paired data with provenance. Summaries report point estimation error, Monte Carlo uncertainty, and interval coverage with explicit failure denominators.">
-<meta property="og:description" content="Generate independent Gaussian linear data, compare fitting adapters, retain every attempt, replay recorded random streams, and export paired data with provenance. Summaries report point estimation error, Monte Carlo uncertainty, and interval coverage with explicit failure denominators.">
+<script src="deps/headroom-0.11.0/headroom.min.js"></script><script src="deps/headroom-0.11.0/jQuery.headroom.min.js"></script><script src="deps/bootstrap-toc-1.0.1/bootstrap-toc.min.js"></script><script src="deps/clipboard.js-2.0.11/clipboard.min.js"></script><script src="deps/search-1.0.0/autocomplete.jquery.min.js"></script><script src="deps/search-1.0.0/fuse.min.js"></script><script src="deps/search-1.0.0/mark.min.js"></script><!-- pkgdown --><script src="pkgdown.js"></script><meta property="og:title" content="Reproducible Gaussian and logistic study comparisons">
+<meta name="description" content="Generate independent Gaussian or Bernoulli-logit data, compare fitting adapters on paired observations, retain every fit attempt, replay recorded random streams, and export data with provenance. Summaries report coefficient recovery, Monte Carlo uncertainty, and interval coverage with explicit failure denominators. Logistic comparisons are bounded to fixed-effect intercept and slope targets.">
+<meta property="og:description" content="Generate independent Gaussian or Bernoulli-logit data, compare fitting adapters on paired observations, retain every fit attempt, replay recorded random streams, and export data with provenance. Summaries report coefficient recovery, Monte Carlo uncertainty, and interval coverage with explicit failure denominators. Logistic comparisons are bounded to fixed-effect intercept and slope targets.">
+<meta property="og:image" content="https://itchyshin.github.io/groundtruth/logo.png">
 </head>
 <body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -52,28 +58,45 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9"><div class="section level1">
-<div class="page-header"><h1 id="groundtruth">groundtruth<a class="anchor" aria-label="anchor" href="#groundtruth"></a>
-</h1></div>
-<p><code>groundtruth</code> runs small Gaussian linear simulation studies with a record of every fit attempt. It separates data generation from fitting, gives each adapter the same data, and reports the denominators behind interval coverage.</p>
-<p>This development version supports an intercept (<code>alpha</code>) and slope (<code>beta</code>) under</p>
+<div class="page-header">
+<img src="logo.png" class="logo" alt=""><h1 id="groundtruth">groundtruth<a class="anchor" aria-label="anchor" href="#groundtruth"></a>
+</h1>
+</div>
+<p><code>groundtruth</code> runs small simulation studies with a record of every fit attempt. It separates data generation from fitting, gives adapters paired observations, and reports the denominators behind interval coverage. It supports Gaussian linear regression and fixed-effect logistic scenarios through a native R adapter. R 4.6.0 checked development version 0.0.0.9000: 346 assertions passed with <code>Status: OK</code> and no NOTE. The pkgdown 2.2.0 preview rendered and its link checks passed.</p>
+<div class="section level2">
+<h2 id="gaussian-model">Gaussian model<a class="anchor" aria-label="anchor" href="#gaussian-model"></a>
+</h2>
+<p>The default scenario has an intercept (<code>alpha</code>) and slope (<code>beta</code>) under</p>
 <pre class="text"><code>y = alpha + beta * x + sigma * error
 x and error are independent standard normal draws.</code></pre>
 <p>The default adapter fits <code><a href="https://rdrr.io/r/stats/lm.html" class="external-link">stats::lm()</a></code> and returns 90% and 95% Student t intervals. Custom adapters receive only a fresh <code>data.frame(x, y)</code> and return a <code><a href="reference/gt_result.html">gt_result()</a></code>.</p>
-<div class="section level2">
-<h2 id="start-a-study">Start a study<a class="anchor" aria-label="anchor" href="#start-a-study"></a>
-</h2>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://itchyshin.github.io/groundtruth/">groundtruth</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">scenario</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gt_scenario.html">gt_scenario</a></span><span class="op">(</span><span class="st">"example"</span>, n <span class="op">=</span> <span class="fl">40</span>, alpha <span class="op">=</span> <span class="fl">1</span>, beta <span class="op">=</span> <span class="fl">0.7</span>, sigma <span class="op">=</span> <span class="fl">1.2</span><span class="op">)</span></span>
 <span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gt_runstudy.html">gt_runstudy</a></span><span class="op">(</span><span class="va">scenario</span>, reps <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="st">"20261004"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/gt_summarize.html">gt_summarize</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span></span></code></pre></div>
-<p>Five repetitions show the workflow. They provide little information about repeated-sampling performance. A larger calibration study is a separate task.</p>
+<p>Five repetitions show the workflow. They provide little information about repeated-sampling performance. A larger calibration study is separate work.</p>
+</div>
+<div class="section level2">
+<h2 id="logistic-model">Logistic model<a class="anchor" aria-label="anchor" href="#logistic-model"></a>
+</h2>
+<p>For an explicitly selected logistic scenario,</p>
+<pre class="text"><code><span><span class="va">y</span> <span class="op">~</span> <span class="fu">Bernoulli</span><span class="op">(</span><span class="va">p</span><span class="op">)</span></span>
+<span><span class="fu">logit</span><span class="op">(</span><span class="va">p</span><span class="op">)</span> <span class="op">=</span> <span class="va">alpha</span> <span class="op">+</span> <span class="va">beta</span> <span class="op">*</span> <span class="va">x</span></span></code></pre>
+<p><code>alpha</code> and <code>beta</code> are conditional log-odds coefficients. The native adapter uses <code><a href="https://rdrr.io/r/stats/glm.html" class="external-link">stats::glm()</a></code> with a binomial family and logit link. Logistic intervals are normal Wald intervals from final observed information at 90% and 95%. Gaussian intervals remain Student t intervals.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">logistic</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gt_scenario.html">gt_scenario</a></span><span class="op">(</span><span class="st">"binary"</span>, n <span class="op">=</span> <span class="fl">200</span>, alpha <span class="op">=</span> <span class="op">-</span><span class="fl">0.4</span>, beta <span class="op">=</span> <span class="fl">0.8</span>,</span>
+<span>                        family <span class="op">=</span> <span class="st">"logistic"</span><span class="op">)</span></span>
+<span><span class="va">logit_study</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gt_runstudy.html">gt_runstudy</a></span><span class="op">(</span><span class="va">logistic</span>, adapters <span class="op">=</span> <span class="fu"><a href="reference/gt_glm_adapter.html">gt_glm_adapter</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>                           reps <span class="op">=</span> <span class="fl">5</span>, seed <span class="op">=</span> <span class="st">"20261006"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="reference/gt_summarize.html">gt_summarize</a></span><span class="op">(</span><span class="va">logit_study</span><span class="op">)</span></span></code></pre></div>
+<p>A logistic <code><a href="reference/gt_adapter.html">gt_adapter()</a></code> needs a supplied fitter and <code>family = "logistic"</code>; <code>gt_adapter(fit = NULL, family = "logistic")</code> directs users to <code><a href="reference/gt_glm_adapter.html">gt_glm_adapter()</a></code>. The runner checks family compatibility before calling a fitter. A mismatch is recorded as a failed attempt and the fitter is not invoked. Exact class-support checks distinguish complete separation, quasi separation and existence of a finite MLE. Numerical convergence is checked separately: native GLM convergence must pass, the maximum absolute standardized score must be at most <code>1e-9</code>, and the maximum absolute standardized Newton correction to the linear predictor must be at most <code>1e-9</code>. A failed point fit rejects both coefficient targets; an interval-only failure preserves accepted point estimates and omits only affected intervals.</p>
 </div>
 <div class="section level2">
 <h2 id="supply-an-adapter">Supply an adapter<a class="anchor" aria-label="anchor" href="#supply-an-adapter"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">mean_only</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gt_adapter.html">gt_adapter</a></span><span class="op">(</span><span class="st">"mean-only"</span>, <span class="kw">function</span><span class="op">(</span><span class="va">data</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="fu"><a href="reference/gt_result.html">gt_result</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>alpha <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/mean.html" class="external-link">mean</a></span><span class="op">(</span><span class="va">data</span><span class="op">$</span><span class="va">y</span><span class="op">)</span>, beta <span class="op">=</span> <span class="fl">0</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">}</span><span class="op">)</span></span>
@@ -100,24 +123,23 @@ x and error are independent standard normal draws.</code></pre>
 <div class="section level2">
 <h2 id="replay-and-export">Replay and export<a class="anchor" aria-label="anchor" href="#replay-and-export"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">replayed</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/gt_replay.html">gt_replay</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/stopifnot.html" class="external-link">stopifnot</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span><span class="va">study</span><span class="op">$</span><span class="va">data</span>, <span class="va">replayed</span><span class="op">$</span><span class="va">data</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Choose a new destination; an existing destination is refused.</span></span>
 <span><span class="va">export_dir</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/file.path.html" class="external-link">file.path</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/tempfile.html" class="external-link">tempdir</a></span><span class="op">(</span><span class="op">)</span>, <span class="st">"groundtruth-example-export"</span><span class="op">)</span></span>
 <span><span class="kw">if</span> <span class="op">(</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/files.html" class="external-link">file.exists</a></span><span class="op">(</span><span class="va">export_dir</span><span class="op">)</span><span class="op">)</span> <span class="fu"><a href="reference/gt_export.html">gt_export</a></span><span class="op">(</span><span class="va">study</span>, <span class="va">export_dir</span><span class="op">)</span></span></code></pre></div>
-<p>Exported CSV files contain paired data, attempts, target rows, summaries, scenarios and the complete seed map. <code>manifest.R</code> can be read with <code><a href="https://rdrr.io/r/base/dput.html" class="external-link">dget()</a></code>. It identifies schemas, versions, adapter metadata and SHA256 file hashes. It records the SHA256 of the sole R implementation file that produced the study, separately from the exporter implementation. That hash identifies R code, not the whole documentation or a Git commit. CSV numbers retain 17 significant digits; a decimal reader may change the last binary digit. Export does not serialize custom adapter code or closure state; retain that code yourself.</p>
+<p>Exported CSV files contain paired data, attempts, target rows, summaries, scenarios and the complete seed map. <code>manifest.R</code> can be read with <code><a href="https://rdrr.io/r/base/dput.html" class="external-link">dget()</a></code>. It identifies schemas, versions, adapter metadata and SHA256 file hashes. It records the SHA256 of the sole R implementation file that produced the study, separately from the exporter implementation. That hash identifies R code, not the whole documentation or a Git commit. New exports use <code>groundtruth-r-export-v2</code> and include scenario and adapter families; logistic scenarios store <code>NA</code> for numeric <code>sigma</code>. Earlier artifacts are unchanged, and no importer is provided. CSV numbers retain 17 significant digits; a decimal reader may change the last binary digit. Export does not serialize custom adapter code or closure state; retain that code yourself.</p>
 <p>R streams use a separately versioned SHA256 key allocation and fixed Mersenne-Twister/Inversion/Rejection settings. Reordering the same scenarios and adapters preserves results. Replay restores recorded settings and seeds. Calls restore the caller’s RNG kind and seed, including absence of a seed. An ambient Box-Muller normal generator is refused before any RNG change because its cached normal state cannot be restored safely. Do not expect R and Julia to generate equal random draws from equal master seed labels. Keep Julia’s 64-bit seed labels as character strings.</p>
 </div>
 <div class="section level2">
 <h2 id="scope-and-evidence">Scope and evidence<a class="anchor" aria-label="anchor" href="#scope-and-evidence"></a>
 </h2>
-<p>The frozen analytic example checks coefficients, standard errors and both Student t interval levels against an independent scalar ordinary least squares (OLS) calculation. The retained public Julia linear data and result rows separately check coefficients and 95% endpoints. Tests also check replay, adapter isolation, accounting, export integrity and deliberate wrong-answer controls.</p>
-<p>This version covers Gaussian linear data and two fixed coefficient targets. It does NOT cover logistic models, mixed models, Julia engine calls, calibration campaigns or CRAN release readiness. The public Julia reference is <a href="https://github.com/itchyshin/GroundTruth.jl/tree/3738bfe340fff62ec1afb0a78f0101babe79fbd7" class="external-link">GroundTruth.jl commit 3738bfe</a>. The R package is a separate implementation.</p>
-<p>The local documentation preview is prepared for review. Publishing, CI activation and installation instructions for a public release await final approval.</p>
-<p>The URLs in package metadata are the intended source, issue tracker and documentation destinations. A URL field is not evidence that this development package or its site has been published.</p>
-<p>For source maintenance, run <code>Rscript --vanilla tools/update-source-identity.R</code> after changing <code>R/groundtruth.R</code> or <code>DESCRIPTION</code>, before tests and package build. This refreshes the implementation hash and package version bundled in the export provenance.</p>
+<p>The frozen Gaussian analytic example checks coefficients, standard errors and both Student t interval levels against an independent scalar ordinary least squares (OLS) calculation. The retained public Julia linear data and result rows separately check coefficients and 95% endpoints. Tests also check replay, adapter isolation, accounting, export integrity and deliberate wrong-answer controls. The paired logistic fixture gate checked 14 accepted fits across seven fixtures and five rejected-design fixtures. Maximum paired absolute differences were 6.87e-11 for coefficients, 7.12e-12 for standard errors, 8.28e-11 for endpoints and 9.99e-16 for mean negative log likelihood. The comparisons cover one-predictor Bernoulli models with unit weights and reused references, not new reference fits. They do not establish calibration, fitted GLMM behavior or package-wide parity. R 4.6.0 checked development version 0.0.0.9000: 346 assertions passed with <code>Status: OK</code> and no NOTE. The local pkgdown 2.2.0 preview rendered successfully.</p>
+<p>The Julia public reference is <a href="https://github.com/itchyshin/GroundTruth.jl/tree/3738bfe340fff62ec1afb0a78f0101babe79fbd7" class="external-link">GroundTruth.jl commit 3738bfe</a>, and its established site is <a href="https://itchyshin.github.io/GroundTruth.jl/" class="external-link">GroundTruth.jl documentation</a>. The R package is a separate implementation. R and Julia use distinct random streams; bounded numerical comparisons use the same frozen CSV bytes, not matched seed labels. Agreement on those fixed-effect fixtures is not calibration evidence or package-wide parity.</p>
+<p>The <a href="https://itchyshin.github.io/groundtruth/">R documentation</a> includes Gaussian and logistic workflows. Source and issue links are recorded in the package metadata.</p>
+<p>For source maintenance, run <code>Rscript --vanilla tools/update-source-identity.R</code> after changing <code>R/groundtruth.R</code> or <code>DESCRIPTION</code>, before tests and package build. This refreshes the implementation hash and package version bundled in export provenance. The development package version remains 0.0.0.9000.</p>
 </div>
 </div>
   </main><aside class="col-md-3"><div class="links">

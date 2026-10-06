@@ -1,12 +1,17 @@
 # groundtruth
 
-`groundtruth` runs small Gaussian linear simulation studies with a
-record of every fit attempt. It separates data generation from fitting,
-gives each adapter the same data, and reports the denominators behind
-interval coverage.
+`groundtruth` runs small simulation studies with a record of every fit
+attempt. It separates data generation from fitting, gives adapters
+paired observations, and reports the denominators behind interval
+coverage. It supports Gaussian linear regression and fixed-effect
+logistic scenarios through a native R adapter. R 4.6.0 checked
+development version 0.0.0.9000: 346 assertions passed with `Status: OK`
+and no NOTE. The pkgdown 2.2.0 preview rendered and its link checks
+passed.
 
-This development version supports an intercept (`alpha`) and slope
-(`beta`) under
+## Gaussian model
+
+The default scenario has an intercept (`alpha`) and slope (`beta`) under
 
 ``` text
 y = alpha + beta * x + sigma * error
@@ -19,8 +24,6 @@ Student t intervals. Custom adapters receive only a fresh
 `data.frame(x, y)` and return a
 [`gt_result()`](https://itchyshin.github.io/groundtruth/reference/gt_result.md).
 
-## Start a study
-
 ``` r
 
 library(groundtruth)
@@ -31,8 +34,48 @@ gt_summarize(study)
 ```
 
 Five repetitions show the workflow. They provide little information
-about repeated-sampling performance. A larger calibration study is a
-separate task.
+about repeated-sampling performance. A larger calibration study is
+separate work.
+
+## Logistic model
+
+For an explicitly selected logistic scenario,
+
+``` text
+y ~ Bernoulli(p)
+logit(p) = alpha + beta * x
+```
+
+`alpha` and `beta` are conditional log-odds coefficients. The native
+adapter uses [`stats::glm()`](https://rdrr.io/r/stats/glm.html) with a
+binomial family and logit link. Logistic intervals are normal Wald
+intervals from final observed information at 90% and 95%. Gaussian
+intervals remain Student t intervals.
+
+``` r
+
+logistic <- gt_scenario("binary", n = 200, alpha = -0.4, beta = 0.8,
+                        family = "logistic")
+logit_study <- gt_runstudy(logistic, adapters = gt_glm_adapter(),
+                           reps = 5, seed = "20261006")
+gt_summarize(logit_study)
+```
+
+A logistic
+[`gt_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_adapter.md)
+needs a supplied fitter and `family = "logistic"`;
+`gt_adapter(fit = NULL, family = "logistic")` directs users to
+[`gt_glm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_glm_adapter.md).
+The runner checks family compatibility before calling a fitter. A
+mismatch is recorded as a failed attempt and the fitter is not invoked.
+Exact class-support checks distinguish complete separation, quasi
+separation and existence of a finite MLE. Numerical convergence is
+checked separately: native GLM convergence must pass, the maximum
+absolute standardized score must be at most `1e-9`, and the maximum
+absolute standardized Newton correction to the linear predictor must be
+at most `1e-9`. A failed point fit rejects both coefficient targets; an
+interval-only failure preserves accepted point estimates and omits only
+affected intervals.
 
 ## Supply an adapter
 
@@ -87,7 +130,10 @@ with [`dget()`](https://rdrr.io/r/base/dput.html). It identifies
 schemas, versions, adapter metadata and SHA256 file hashes. It records
 the SHA256 of the sole R implementation file that produced the study,
 separately from the exporter implementation. That hash identifies R
-code, not the whole documentation or a Git commit. CSV numbers retain 17
+code, not the whole documentation or a Git commit. New exports use
+`groundtruth-r-export-v2` and include scenario and adapter families;
+logistic scenarios store `NA` for numeric `sigma`. Earlier artifacts are
+unchanged, and no importer is provided. CSV numbers retain 17
 significant digits; a decimal reader may change the last binary digit.
 Export does not serialize custom adapter code or closure state; retain
 that code yourself.
@@ -104,49 +150,58 @@ character strings.
 
 ## Scope and evidence
 
-The frozen analytic example checks coefficients, standard errors and
-both Student t interval levels against an independent scalar ordinary
-least squares (OLS) calculation. The retained public Julia linear data
-and result rows separately check coefficients and 95% endpoints. Tests
-also check replay, adapter isolation, accounting, export integrity and
-deliberate wrong-answer controls.
+The frozen Gaussian analytic example checks coefficients, standard
+errors and both Student t interval levels against an independent scalar
+ordinary least squares (OLS) calculation. The retained public Julia
+linear data and result rows separately check coefficients and 95%
+endpoints. Tests also check replay, adapter isolation, accounting,
+export integrity and deliberate wrong-answer controls. The paired
+logistic fixture gate checked 14 accepted fits across seven fixtures and
+five rejected-design fixtures. Maximum paired absolute differences were
+6.87e-11 for coefficients, 7.12e-12 for standard errors, 8.28e-11 for
+endpoints and 9.99e-16 for mean negative log likelihood. The comparisons
+cover one-predictor Bernoulli models with unit weights and reused
+references, not new reference fits. They do not establish calibration,
+fitted GLMM behavior or package-wide parity. R 4.6.0 checked development
+version 0.0.0.9000: 346 assertions passed with `Status: OK` and no NOTE.
+The local pkgdown 2.2.0 preview rendered successfully.
 
-This version covers Gaussian linear data and two fixed coefficient
-targets. It does NOT cover logistic models, mixed models, Julia engine
-calls, calibration campaigns or CRAN release readiness. The public Julia
-reference is [GroundTruth.jl commit
-3738bfe](https://github.com/itchyshin/GroundTruth.jl/tree/3738bfe340fff62ec1afb0a78f0101babe79fbd7).
-The R package is a separate implementation.
+The Julia public reference is [GroundTruth.jl commit
+3738bfe](https://github.com/itchyshin/GroundTruth.jl/tree/3738bfe340fff62ec1afb0a78f0101babe79fbd7),
+and its established site is [GroundTruth.jl
+documentation](https://itchyshin.github.io/GroundTruth.jl/). The R
+package is a separate implementation. R and Julia use distinct random
+streams; bounded numerical comparisons use the same frozen CSV bytes,
+not matched seed labels. Agreement on those fixed-effect fixtures is not
+calibration evidence or package-wide parity.
 
-The local documentation preview is prepared for review. Publishing, CI
-activation and installation instructions for a public release await
-final approval.
-
-The URLs in package metadata are the intended source, issue tracker and
-documentation destinations. A URL field is not evidence that this
-development package or its site has been published.
+The [R documentation](https://itchyshin.github.io/groundtruth/) includes
+Gaussian and logistic workflows. Source and issue links are recorded in
+the package metadata.
 
 For source maintenance, run
 `Rscript --vanilla tools/update-source-identity.R` after changing
 `R/groundtruth.R` or `DESCRIPTION`, before tests and package build. This
-refreshes the implementation hash and package version bundled in the
-export provenance.
+refreshes the implementation hash and package version bundled in export
+provenance. The development package version remains 0.0.0.9000.
 
 # Package index
 
 ## Define a comparison
 
 - [`gt_scenario()`](https://itchyshin.github.io/groundtruth/reference/gt_scenario.md)
-  : Define a Gaussian simulation scenario
+  : Define a simulation scenario
 - [`gt_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_adapter.md)
   : Define a fitting adapter
+- [`gt_glm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_glm_adapter.md)
+  : Create the native fixed-effect binomial-logit adapter
 - [`gt_result()`](https://itchyshin.github.io/groundtruth/reference/gt_result.md)
   : Construct a fitting result
 
 ## Run and inspect
 
 - [`gt_runstudy()`](https://itchyshin.github.io/groundtruth/reference/gt_runstudy.md)
-  : Run a reproducible Gaussian simulation study
+  : Run a reproducible Gaussian or logistic simulation study
 - [`gt_replay()`](https://itchyshin.github.io/groundtruth/reference/gt_replay.md)
   : Replay a recorded simulation study
 - [`gt_summarize()`](https://itchyshin.github.io/groundtruth/reference/gt_summarize.md)
