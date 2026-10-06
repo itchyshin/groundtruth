@@ -1,0 +1,80 @@
+---
+title: "Paired data, replay and honest denominators"
+output: html_document
+---
+
+A simulation comparison is easier to inspect when every adapter fits the same generated data and every attempt remains visible. `groundtruth` starts with a Gaussian linear example and two coefficient targets.
+
+```{r setup, include=FALSE}
+library(groundtruth)
+```
+
+## Generate once, fit separately
+
+```{r study}
+scenario <- gt_scenario("small", n = 30, alpha = 1, beta = 2, sigma = 1)
+study <- gt_runstudy(scenario, reps = 4, seed = "20261004")
+head(study$data)
+study$ledger
+```
+
+The generator draws `x` and error independently. It constructs `y` from the stated truth without calling an estimator. Each adapter receives a fresh data frame containing only `x` and `y`. The runner stores truth separately for scoring.
+
+## Keep points when intervals are absent
+
+```{r custom}
+point_only <- gt_adapter("point-only", function(data) {
+  fitted <- stats::lm(y ~ x, data = data, na.action = stats::na.fail,
+                      singular.ok = FALSE)
+  coefficient <- stats::coef(fitted)
+  gt_result(c(alpha = unname(coefficient["(Intercept)"]),
+              beta = unname(coefficient["x"])))
+})
+paired <- gt_runstudy(scenario, list(gt_adapter(), point_only),
+                      reps = 4, seed = "20261004")
+summary <- gt_summarize(paired)
+summary[, c("adapter", "target", "level", "attempted", "successful",
+            "usable_intervals", "coverage", "covered_per_attempt")]
+```
+
+The point-only adapter still contributes to bias and RMSE. Its intervals are unusable, so conditional coverage is `NA` and covered per attempt is zero. A failed fit rejects both coefficient targets. Failure counts remain in the attempt denominator.
+
+An interval result uses these exact column names:
+
+```{r intervals}
+gt_result(c(alpha = 1, beta = 2),
+          intervals = data.frame(target = c("alpha", "beta"),
+                                 level = c(0.95, 0.95),
+                                 lower = c(0.5, 1.5),
+                                 upper = c(1.5, 2.5)))
+```
+
+Missing intervals at the other level remain unusable. A duplicate target-level row does not select one row arbitrarily. Nonfinite or reversed bounds also exclude that interval while retaining valid points.
+
+## Distinguish two kinds of interval
+
+The default fitted-coefficient intervals use Student t quantiles with `n - 2` degrees of freedom and residual variance `SSE / (n - 2)`. The coverage summary uses a Wilson 95% Monte Carlo interval for the measured coverage fraction. The first describes coefficient uncertainty in one data set; the second describes uncertainty from a finite number of repetitions.
+
+With four repetitions, the Monte Carlo uncertainty is large. This article demonstrates accounting and replay, not a calibration result.
+
+## Retain replay information
+
+```{r replay}
+replayed <- gt_replay(paired)
+stopifnot(identical(paired$data, replayed$data))
+stopifnot(identical(paired$targets, replayed$targets))
+head(paired$seed_map)
+```
+
+Replay uses the recorded RNG settings and full allocated seed map. Stateless deterministic adapters replay exactly in the same environment. For adapters that read external files or mutate captured state, preserve those inputs and reset that state yourself.
+
+```{r export}
+path <- tempfile("groundtruth-export-")
+gt_export(paired, path)
+manifest <- dget(file.path(path, "manifest.R"))
+list.files(path)
+```
+
+A manifest is an audit record. `dget()` should be used only on a trusted manifest, because it evaluates R expressions. The exported manifest contains data rather than adapter code. It records a SHA256 for the sole R implementation file that produced the study and a separate exporter hash. This source identity does not include custom adapter code or the whole documentation. Read CSV columns according to its schemas, preserving seed strings as character.
+
+This implementation does NOT cover other response families, random effects or external inference engines. No promise is made that R and Julia produce equal draws from equal master seed labels.

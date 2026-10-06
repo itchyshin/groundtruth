@@ -1,0 +1,18 @@
+Package: groundtruth
+Title: Reproducible Gaussian Simulation Studies with Explicit Fit Accounting
+Version: 0.0.0.9000
+Authors@R: person("Shinichi", "Nakagawa", role = c("aut", "cre"), email = "snakagaw@ualberta.ca")
+Description: Generate independent Gaussian linear data, compare fitting adapters,
+    retain every attempt, replay recorded random streams, and export paired data
+    with provenance. Summaries report point estimation error, Monte Carlo
+    uncertainty, and interval coverage with explicit failure denominators.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1.0)
+Imports: stats, digest
+Suggests: testthat (>= 3.0.0), roxygen2, pkgdown
+Config/testthat/edition: 3
+URL: https://itchyshin.github.io/groundtruth/, https://github.com/itchyshin/groundtruth
+BugReports: https://github.com/itchyshin/groundtruth/issues
+Config/roxygen2/version: 8.0.0
+Roxygen: list(markdown = TRUE)

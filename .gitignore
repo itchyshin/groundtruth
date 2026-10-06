@@ -1,0 +1,10 @@
+.unlazy/
+.Rhistory
+.RData
+work/
+docs/site/
+*.Rcheck/
+*.tar.gz
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

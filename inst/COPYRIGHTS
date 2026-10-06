@@ -1,0 +1,13 @@
+The R implementation is separately written for groundtruth. Gaussian linear
+study and summary semantics follow the public GroundTruth.jl at
+https://github.com/itchyshin/GroundTruth.jl, commit
+3738bfe340fff62ec1afb0a78f0101babe79fbd7 (Shinichi Nakagawa, 2026).
+
+Frozen test fixtures rep1-data.csv and rep1-julia.csv are copied verbatim from
+results/linear at that commit. Their SHA256 hashes and comparison tolerances
+are pinned in tests/testthat/fixtures/freeze.json before numerical checks.
+The private unpublished LMM branch is not the numerical reference.
+
+R's random-number algorithm and stream allocation are versioned separately.
+Agreement on paired data does not imply equal R/Julia random draws or prove
+simulation calibration.

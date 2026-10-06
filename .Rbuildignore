@@ -1,0 +1,16 @@
+^\.unlazy$
+^docs$
+^scripts$
+^work$
+^\.gitignore$
+^\.github$
+^DELIVERY\.md$
+^CONTRACT\.md$
+^PLAN\.md$
+^_pkgdown\.yml$
+^groundtruth.*\.tar\.gz$
+^groundtruth\.Rcheck$
+^vignettes/articles$
+^LICENSE\.md$
+^\.ignore$
+^graft$

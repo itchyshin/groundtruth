@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "source_commit": "3738bfe340fff62ec1afb0a78f0101babe79fbd7",
+  "source_repo": "https://github.com/itchyshin/GroundTruth.jl",
+  "hashes": {
+    "rep1-data.csv": "5d854e1370f2843afb6129c331498103c8995707116f01dd2f3ad79b5ada9c7e",
+    "rep1-julia.csv": "a52574dc5e3d044c4ff1461240f9d6949ed6a70e71a91f67c5e70e4916b69b9c",
+    "analytic.csv": "2831fae00b27fbe629448eec2b6cce3c77556ae957b65ceca78f269c2bb8a8b9"
+  },
+  "atol": 1e-10,
+  "rtol": 1e-10,
+  "summary_tolerance": 1e-12,
+  "counts": "exact",
+  "frozen_before_numeric_checks": true
+}
