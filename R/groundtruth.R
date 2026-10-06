@@ -1,84 +1,104 @@
-#' Define a Gaussian simulation scenario
+#' Define a simulation scenario
 #'
 #' @param id A non-empty scalar character identifier.
 #' @param n Number of observations, an integer greater than two.
 #' @param alpha Intercept used to generate data.
 #' @param beta Slope used to generate data.
-#' @param sigma Positive residual standard deviation.
+#' @param sigma Positive residual standard deviation for Gaussian scenarios;
+#'   omitted logistic scenarios use no sigma.
+#' @param family Either `"gaussian"` or `"logistic"`.
 #' @return A `gt_scenario` object.
 #' @examples
 #' gt_scenario("small", n = 20L)
+#' gt_scenario("binary", family = "logistic")
 #' @export
-gt_scenario <- function(id, n = 100L, alpha = 1, beta = 0.7, sigma = 1.2) {
+gt_scenario <- function(
+  id, n = 100L, alpha = 1, beta = 0.7,
+  sigma = if (identical(family, "logistic")) NULL else 1.2,
+  family = "gaussian"
+) {
   .gt_scalar_character(id, "id", nonempty = TRUE)
+  .gt_family(family)
   if (
-    length(n) != 1L ||
-      is.na(n) ||
-      !is.numeric(n) ||
-      !is.finite(n) ||
-      n != floor(n) ||
-      n > .Machine$integer.max ||
-      n <= 2L
-  ) {
-    stop("`n` must be an integer greater than 2.", call. = FALSE)
-  }
-  for (nm in c("alpha", "beta", "sigma")) {
+    length(n) != 1L || is.na(n) || !is.numeric(n) || !is.finite(n) ||
+      n != floor(n) || n > .Machine$integer.max || n <= 2L
+  ) stop("`n` must be an integer greater than 2.", call. = FALSE)
+  for (nm in c("alpha", "beta")) {
     value <- get(nm, inherits = FALSE)
-    if (
-      length(value) != 1L ||
-        !is.numeric(value) ||
-        is.na(value) ||
-        !is.finite(value)
-    ) {
+    if (length(value) != 1L || !is.numeric(value) || is.na(value) ||
+        !is.finite(value)) {
       stop(sprintf("`%s` must be a finite numeric scalar.", nm), call. = FALSE)
     }
   }
-  if (sigma <= 0) {
-    stop("`sigma` must be positive.", call. = FALSE)
+  if (identical(family, "gaussian")) {
+    if (length(sigma) != 1L || !is.numeric(sigma) || is.na(sigma) ||
+        !is.finite(sigma) || sigma <= 0) {
+      stop("`sigma` must be a positive finite scalar for Gaussian scenarios.",
+           call. = FALSE)
+    }
+    sigma <- as.numeric(sigma)
+  } else if (!is.null(sigma)) {
+    stop("`sigma` must be NULL for logistic scenarios.", call. = FALSE)
   }
-  structure(
-    list(
-      id = id,
-      n = as.integer(n),
-      alpha = as.numeric(alpha),
-      beta = as.numeric(beta),
-      sigma = as.numeric(sigma)
-    ),
-    class = "gt_scenario"
-  )
+  structure(list(id = id, n = as.integer(n), alpha = as.numeric(alpha),
+                 beta = as.numeric(beta), sigma = sigma, family = family),
+            class = "gt_scenario")
 }
 
 #' Define a fitting adapter
 #'
 #' @param id A non-empty scalar character identifier.
 #' @param fit A function accepting one fresh data frame with exactly `x` and
-#'   `y`,
-#'   or `NULL` for the default Gaussian linear-model adapter. Truth is withheld.
+#'   `y`, or `NULL` for the default fitter of the declared family.
 #' @param metadata A list of descriptive metadata.
-#' @details The default uses `stats::lm(y ~ x, na.action = stats::na.fail,
-#' singular.ok = FALSE)` on finite, equal-length, rank-two data with more than
-#' two observations. `(Intercept)` maps to `alpha` and `x` to `beta`. Residual
-#' variance is SSE / (n - 2). It returns two-sided 90% and 95% Student t
-#' intervals
-#' with n - 2 degrees of freedom. Diagnostics include residual variance,
-#' coefficient covariance, standard errors, fitted values and residuals.
-#' Custom fitting functions use their separately allocated global R RNG stream.
-#' @return A `gt_adapter` object with `id`, `fit` and descriptive `metadata`.
+#' @param family Either `"gaussian"` or `"logistic"`.
+#' @details The default Gaussian fitter uses `stats::lm` with an intercept and
+#'   slope, estimates residual variance as SSE / (n - 2), and returns 90% and
+#'   95% Student t intervals. Logistic fitters must be supplied explicitly or
+#'   created with [gt_glm_adapter()]. Truth is withheld from every fitter.
+#' @return A `gt_adapter` object with its declared family.
 #' @examples
 #' gt_adapter()
 #' @export
-gt_adapter <- function(id = "lm", fit = NULL, metadata = list()) {
+gt_adapter <- function(id = "lm", fit = NULL, metadata = list(), family = "gaussian") {
+  .gt_make_adapter(id, fit, metadata, family, .gt_lm_fit)
+}
+
+#' Create the native fixed-effect binomial-logit adapter
+#'
+#' @param id Adapter identifier.
+#' @param metadata Descriptive metadata.
+#' @return A logistic `gt_adapter` using stats::glm with 200 iterations.
+#' @export
+gt_glm_adapter <- function(id = "glm", metadata = list()) {
   .gt_scalar_character(id, "id", nonempty = TRUE)
-  if (!is.null(fit) && !is.function(fit)) {
-    stop("`fit` must be a function or NULL.", call. = FALSE)
-  }
-  if (!is.list(metadata)) {
-    stop("`metadata` must be a list.", call. = FALSE)
-  }
+  if (!is.list(metadata)) stop("`metadata` must be a list.", call. = FALSE)
+  fit <- function(data) .gt_glm_fit(data, maxit = 200L)
+  structure(list(id = id, fit = fit, metadata = metadata, family = "logistic"),
+            class = "gt_adapter")
+}
+
+.gt_make_adapter <- function(id, fit, metadata, family, default_fit) {
+  .gt_scalar_character(id, "id", nonempty = TRUE)
+  .gt_family(family)
+  if (!is.null(fit) && !is.function(fit)) stop("`fit` must be a function or NULL.", call. = FALSE)
+  if (!is.list(metadata)) stop("`metadata` must be a list.", call. = FALSE)
   if (is.null(fit)) {
-    fit <- .gt_lm_fit
+    if (identical(family, "logistic")) {
+      stop("Supply a logistic fitter or use `gt_glm_adapter()`.", call. = FALSE)
+    }
+    fit <- default_fit
   }
-  structure(list(id = id, fit = fit, metadata = metadata), class = "gt_adapter")
+  structure(list(id = id, fit = fit, metadata = metadata, family = family),
+            class = "gt_adapter")
+}
+
+.gt_family <- function(x) {
+  if (length(x) != 1L || !is.character(x) || is.na(x) ||
+      !x %in% c("gaussian", "logistic")) {
+    stop("`family` must be `gaussian` or `logistic`.", call. = FALSE)
+  }
+  x
 }
 
 #' Construct a fitting result
@@ -135,7 +155,7 @@ gt_result <- function(
   )
 }
 
-#' Run a reproducible Gaussian simulation study
+#' Run a reproducible Gaussian or logistic simulation study
 #'
 #' @param scenarios A `gt_scenario` or a non-empty list of them.
 #' @param adapters A `gt_adapter` or a non-empty list of them.
@@ -362,7 +382,7 @@ gt_export <- function(study, path) {
   )
   names(hashes) <- csv_names
   manifest <- list(
-    schema_version = "groundtruth-r-export-v1",
+    schema_version = "groundtruth-r-export-v2",
     rng_algorithm = "groundtruth-r-rng-v1",
     master_seed = study$master_seed,
     csv = lapply(files, .gt_schema),
@@ -378,7 +398,7 @@ gt_export <- function(study, path) {
     exporter_source_sha256 = .gt_source_identity()$source_sha256,
     digest_version = as.character(utils::packageVersion("digest")),
     adapters = lapply(study$adapters, function(a) {
-      list(id = a$id, metadata = a$metadata)
+      list(id = a$id, family = a$family, metadata = a$metadata)
     }),
     provenance = study$provenance
   )
@@ -443,9 +463,11 @@ gt_export <- function(study, path) {
   if (anyDuplicated(ids)) {
     stop("Scenario ids must be unique.", call. = FALSE)
   }
-  for (s in x) {
-    gt_scenario(s$id, s$n, s$alpha, s$beta, s$sigma)
-  }
+  x <- lapply(x, function(s) {
+    family <- if (is.null(s$family)) "gaussian" else s$family
+    sigma <- if (identical(family, "gaussian") && is.null(s$sigma)) 1.2 else s$sigma
+    gt_scenario(s$id, s$n, s$alpha, s$beta, sigma, family)
+  })
   x[order(.gt_byte_order(ids))]
 }
 .gt_adapters <- function(x) {
@@ -466,12 +488,13 @@ gt_export <- function(study, path) {
   if (anyDuplicated(ids)) {
     stop("Adapter ids must be unique.", call. = FALSE)
   }
-  for (a in x) {
+  x <- lapply(x, function(a) {
     .gt_scalar_character(a$id, "adapter id", nonempty = TRUE)
-    if (!is.function(a$fit) || !is.list(a$metadata)) {
-      stop("Malformed adapter.", call. = FALSE)
-    }
-  }
+    if (!is.function(a$fit) || !is.list(a$metadata)) stop("Malformed adapter.", call. = FALSE)
+    if (is.null(a$family)) a$family <- "gaussian"
+    .gt_family(a$family)
+    a
+  })
   x[order(.gt_byte_order(ids))]
 }
 .gt_reps <- function(x) {
@@ -664,11 +687,13 @@ gt_export <- function(study, path) {
     sample.kind = "Rejection"
   )
   x <- stats::rnorm(s$n)
-  e <- stats::rnorm(s$n)
-  y <- s$alpha + s$beta * x + s$sigma * e
-  if (any(!is.finite(x)) || any(!is.finite(y))) {
-    stop("Generated nonfinite Gaussian data.", call. = FALSE)
+  if (identical(s$family, "gaussian")) {
+    e <- stats::rnorm(s$n)
+    y <- s$alpha + s$beta * x + s$sigma * e
+  } else {
+    y <- stats::rbinom(s$n, size = 1L, prob = stats::plogis(s$alpha + s$beta * x))
   }
+  if (any(!is.finite(x)) || any(!is.finite(y))) stop("Generated nonfinite data.", call. = FALSE)
   data.frame(x = x, y = y, stringsAsFactors = FALSE)
 }
 .gt_lm_fit <- function(data) {
@@ -723,6 +748,137 @@ gt_export <- function(study, path) {
       residuals = stats::residuals(fit)
     )
   )
+}
+
+.gt_logistic_residual <- function(y, eta) {
+  residual <- numeric(length(y))
+  success <- y == 1
+  residual[success] <- stats::plogis(-eta[success])
+  residual[!success] <- -stats::plogis(eta[!success])
+  residual
+}
+
+.gt_logistic_loss <- function(y, eta) {
+  loss <- numeric(length(y))
+  positive_eta <- eta >= 0
+  success <- y == 1
+  idx <- positive_eta & success
+  loss[idx] <- log1p(exp(-eta[idx]))
+  idx <- positive_eta & !success
+  loss[idx] <- eta[idx] + log1p(exp(-eta[idx]))
+  idx <- !positive_eta & success
+  loss[idx] <- -eta[idx] + log1p(exp(eta[idx]))
+  idx <- !positive_eta & !success
+  loss[idx] <- log1p(exp(eta[idx]))
+  loss
+}
+
+.gt_glm_fit <- function(data, maxit = 200L) {
+  if (!is.data.frame(data) || !identical(names(data), c("x", "y")) ||
+      nrow(data) <= 2L || !is.numeric(data$x) || !is.numeric(data$y) ||
+      any(!is.finite(data$x)) || any(!is.finite(data$y)) ||
+      any(!(data$y %in% c(0, 1)))) {
+    stop("Logistic fitter requires finite numeric x and numeric 0/1 y.", call. = FALSE)
+  }
+  x <- data$x; y <- data$y
+  if (all(y == 0)) stop("All-zero outcomes have no finite logistic MLE.", call. = FALSE)
+  if (all(y == 1)) stop("All-one outcomes have no finite logistic MLE.", call. = FALSE)
+  if (length(unique(x)) < 2L) stop("Constant predictor: a rank-two design is required.", call. = FALSE)
+  a0 <- range(x[y == 0]); a1 <- range(x[y == 1])
+  if (a0[2] < a1[1] || a1[2] < a0[1]) stop("Complete separation: no finite MLE.", call. = FALSE)
+  if (a0[2] == a1[1] || a1[2] == a0[1]) stop("Quasi separation: no finite MLE.", call. = FALSE)
+  center <- min(x) / 2 + max(x) / 2
+  scale <- max(abs(x - center))
+  if (!is.finite(center) || !is.finite(scale) || scale <= 0) stop("Predictor standardization failed.", call. = FALSE)
+  z <- (x - center) / scale
+  design <- cbind(`(Intercept)` = 1, x = z)
+  if (any(!is.finite(design))) stop("Standardized design is nonfinite.", call. = FALSE)
+  if (maxit == 0L) stop("Native glm iteration limit is 0; fit did not converge.", call. = FALSE)
+  warnings <- character()
+  fit <- withCallingHandlers(
+    stats::glm(y ~ z, data = data.frame(y = y, z = z),
+               family = stats::binomial(link = "logit"),
+               na.action = stats::na.fail, singular.ok = FALSE,
+               control = stats::glm.control(epsilon = 1e-12, maxit = maxit)),
+    warning = function(w) { warnings <<- c(warnings, conditionMessage(w)); invokeRestart("muffleWarning") }
+  )
+  if (!isTRUE(fit$converged)) stop(sprintf("Native glm did not converge (iterations=%d).", fit$iter), call. = FALSE)
+  gamma <- stats::coef(fit)
+  if (length(gamma) != 2L || any(!is.finite(gamma))) stop("Native glm returned nonfinite coefficients.", call. = FALSE)
+  eta <- drop(design %*% gamma)
+  p <- stats::plogis(eta)
+  residual <- .gt_logistic_residual(y, eta)
+  w <- exp(-abs(eta)) / (1 + exp(-abs(eta)))^2
+  score <- drop(crossprod(design, residual)) / length(y)
+  information <- crossprod(design, design * w) / length(y)
+  correction <- tryCatch(solve(information, score), error = function(e) NULL)
+  correction_eta <- if (is.null(correction)) NULL else drop(design %*% correction)
+  if (is.null(correction) || any(!is.finite(correction_eta)) ||
+      max(abs(score)) > 1e-9 || max(abs(correction_eta)) > 1e-9) {
+    stop("Native glm failed the independent standardized final score check.", call. = FALSE)
+  }
+  x_ratio <- center / scale
+  gcoef <- c(alpha = gamma[[1]] - x_ratio * gamma[[2]],
+             beta = gamma[[2]] / scale)
+  native_vcov <- tryCatch(stats::vcov(fit), error = function(e) NULL)
+  if (!is.null(native_vcov) && all(is.finite(native_vcov))) {
+    dimnames(native_vcov) <- list(c("gamma0", "gamma1"), c("gamma0", "gamma1"))
+  } else {
+    native_vcov <- NULL
+  }
+  final_covariance <- tryCatch(solve(crossprod(design, design * w)), error = function(e) NULL)
+  covariance <- matrix(NA_real_, 2L, 2L,
+                       dimnames = list(c("alpha", "beta"), c("alpha", "beta")))
+  se <- c(alpha = NA_real_, beta = NA_real_)
+  intervals <- list()
+  interval_message <- ""
+  if (!is.null(final_covariance) && all(is.finite(final_covariance))) {
+    # Transform each element separately: a nonfinite slope variance must not
+    # contaminate the otherwise usable intercept variance through 0 * Inf.
+    alpha_variance <- final_covariance[1, 1] -
+      2 * x_ratio * final_covariance[1, 2] +
+      x_ratio^2 * final_covariance[2, 2]
+    beta_se <- sqrt(final_covariance[2, 2]) / abs(scale)
+    alpha_beta <- (final_covariance[1, 2] - x_ratio * final_covariance[2, 2]) / scale
+    if (is.finite(alpha_variance) && alpha_variance >= 0) {
+      covariance[1, 1] <- alpha_variance
+      se["alpha"] <- sqrt(alpha_variance)
+    }
+    covariance[2, 2] <- beta_se^2
+    covariance[1, 2] <- covariance[2, 1] <- alpha_beta
+    if (is.finite(beta_se)) se["beta"] <- beta_se
+    for (target in c("alpha", "beta")) {
+      if (!is.finite(se[[target]])) next
+      for (level in c(.90, .95)) {
+        q <- stats::qnorm((1 + level) / 2)
+        lower <- gcoef[[target]] - q * se[[target]]
+        upper <- gcoef[[target]] + q * se[[target]]
+        if (is.finite(lower) && is.finite(upper)) {
+          intervals[[length(intervals) + 1L]] <- data.frame(
+            target = target, level = level, lower = lower, upper = upper,
+            stringsAsFactors = FALSE
+          )
+        }
+      }
+    }
+    if (length(intervals)) intervals <- do.call(rbind, intervals) else intervals <- NULL
+    if (is.null(intervals) || nrow(intervals) < 4L) {
+      interval_message <- "One or more final-information Wald intervals omitted."
+    }
+  } else {
+    intervals <- NULL
+    interval_message <- "Final information matrix is unavailable; intervals omitted."
+  }
+  loss <- .gt_logistic_loss(y, eta)
+  nll <- mean(loss)
+  gt_result(gcoef, intervals, message = interval_message, diagnostics = list(
+    se = se, covariance = covariance, native_vcov = native_vcov,
+    native_warnings = warnings, iterations = fit$iter, native_converged = fit$converged,
+    inference = "final-information Wald", score = score,
+    information = information, correction = correction,
+    linear_predictor_correction = correction_eta, mean_nll = nll,
+    predictions = p
+  ))
 }
 
 .gt_result_checked <- function(x) {
@@ -910,6 +1066,9 @@ gt_export <- function(study, path) {
         if (inherits(generated, "error")) {
           status <- "generation_error"
           message <- conditionMessage(generated)
+        } else if (!identical(s$family, a$family)) {
+          status <- "fit_error"
+          message <- sprintf("Scenario family '%s' does not match adapter family '%s'.", s$family, a$family)
         } else {
           set.seed(
             fseed,
@@ -998,11 +1157,12 @@ gt_export <- function(study, path) {
         version = .gt_source_identity()$package_version,
         source_sha256 = .gt_source_identity()$source_sha256,
         source_scope = .gt_source_identity()$source_scope,
-        data_source = "independent R Gaussian generator v1",
-        model = paste(
-          "y=alpha+beta*x+sigma*error;",
-          "independent standard normal x,error"
-        ),
+        data_source = "independent R family-specific generator v1",
+        families = stats::setNames(lapply(scenarios, function(s) list(
+          family = s$family,
+          model = if (s$family == "gaussian") "y=alpha+beta*x+sigma*error; independent standard normal x,error" else "y~Bernoulli(plogis(alpha+beta*x)); independent standard normal x"
+        )), vapply(scenarios, `[[`, "", "id")),
+        model = "family-specific declared scenario model",
         r_version = R.version.string,
         reference = "https://github.com/itchyshin/GroundTruth.jl",
         reference_commit = "3738bfe340fff62ec1afb0a78f0101babe79fbd7",
@@ -1107,7 +1267,8 @@ gt_export <- function(study, path) {
     n = vapply(scenarios, `[[`, integer(1), "n"),
     alpha = vapply(scenarios, `[[`, numeric(1), "alpha"),
     beta = vapply(scenarios, `[[`, numeric(1), "beta"),
-    sigma = vapply(scenarios, `[[`, numeric(1), "sigma"),
+    sigma = vapply(scenarios, function(s) if (is.null(s$sigma)) NA_real_ else s$sigma, numeric(1)),
+    family = vapply(scenarios, `[[`, "", "family"),
     stringsAsFactors = FALSE
   )
 }

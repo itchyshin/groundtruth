@@ -1,11 +1,12 @@
 Package: groundtruth
-Title: Reproducible Gaussian Simulation Studies with Explicit Fit Accounting
+Title: Simulation Studies for Gaussian and Logistic Regression
 Version: 0.0.0.9000
 Authors@R: person("Shinichi", "Nakagawa", role = c("aut", "cre"), email = "snakagaw@ualberta.ca")
-Description: Generate independent Gaussian linear data, compare fitting adapters,
-    retain every attempt, replay recorded random streams, and export paired data
-    with provenance. Summaries report point estimation error, Monte Carlo
-    uncertainty, and interval coverage with explicit failure denominators.
+Description: Generate independent Gaussian or Bernoulli-logit data, compare fitting
+    adapters on paired observations, retain every fit attempt, replay recorded random
+    streams, and export data with provenance. Summaries report coefficient recovery,
+    Monte Carlo uncertainty, and interval coverage with explicit failure denominators.
+    Logistic comparisons are bounded to fixed-effect intercept and slope targets.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1.0)

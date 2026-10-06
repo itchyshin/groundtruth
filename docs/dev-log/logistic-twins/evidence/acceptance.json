@@ -1,0 +1,70 @@
+{
+  "scope": "approved local logistic twins; fixed effects only; local uncommitted",
+  "date": "2026-10-06",
+  "gates": [
+    {
+      "ledger": "root.md",
+      "gate": "G0"
+    },
+    {
+      "ledger": "root.md",
+      "gate": "G1"
+    },
+    {
+      "ledger": "root.md",
+      "gate": "G2"
+    },
+    {
+      "ledger": "root.md",
+      "gate": "G3"
+    },
+    {
+      "ledger": "root.md",
+      "gate": "G7"
+    },
+    {
+      "ledger": "root.md",
+      "gate": "G8"
+    },
+    {
+      "ledger": "root.md",
+      "gate": "G9"
+    },
+    {
+      "ledger": "leaf-core.md",
+      "gate": "G3"
+    },
+    {
+      "ledger": "leaf-core.md",
+      "gate": "G4"
+    },
+    {
+      "ledger": "leaf-core.md",
+      "gate": "G5"
+    },
+    {
+      "ledger": "leaf-docs.md",
+      "gate": "G6"
+    }
+  ],
+  "all_met": true,
+  "original_paths_unchanged": 500,
+  "numerical_charged_seconds": 233.77839862427209,
+  "numerical_limit_seconds": 900,
+  "review_lenses": [
+    "science ACCEPT",
+    "implementation ACCEPT",
+    "Rose corrections confirmed with routing limitation"
+  ],
+  "limits": [
+    "No calibration, GLMM or package-wide parity claim",
+    "No automated visual-layout certification",
+    "CLI dispatch unsupported; native requested settings retained where available; Rose exact model/effort inputs unavailable",
+    "No commit, push, merge, deployment or dependency installation"
+  ],
+  "receipts": {
+    "r-core-close.log": "937852b54affa222ea3669f922864f9e205170bf2cddcbce4aa90fe1c3eb2f12",
+    "r-docs-final.log": "81ead55b5dc4a268cf8043f0a3671a5e26445d9b232b31c21b2316b8feaec2ae",
+    "r-root-close.log": "1f67436191afc6f72ccde9b764c48c2c534d5c8b93cb806c8984982c089742e5"
+  }
+}

@@ -2,7 +2,7 @@
 % Please edit documentation in R/groundtruth.R
 \name{gt_runstudy}
 \alias{gt_runstudy}
-\title{Run a reproducible Gaussian simulation study}
+\title{Run a reproducible Gaussian or logistic simulation study}
 \usage{
 gt_runstudy(
   scenarios,
@@ -29,7 +29,7 @@ A \code{gt_study} list containing \code{scenarios}, \code{adapters}, \code{reps}
 \code{provenance}.
 }
 \description{
-Run a reproducible Gaussian simulation study
+Run a reproducible Gaussian or logistic simulation study
 }
 \details{
 R streams use groundtruth-r-rng-v1: SHA256 of length-prefixed UTF8

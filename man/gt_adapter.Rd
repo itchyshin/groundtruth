@@ -4,31 +4,29 @@
 \alias{gt_adapter}
 \title{Define a fitting adapter}
 \usage{
-gt_adapter(id = "lm", fit = NULL, metadata = list())
+gt_adapter(id = "lm", fit = NULL, metadata = list(), family = "gaussian")
 }
 \arguments{
 \item{id}{A non-empty scalar character identifier.}
 
 \item{fit}{A function accepting one fresh data frame with exactly \code{x} and
-\code{y},
-or \code{NULL} for the default Gaussian linear-model adapter. Truth is withheld.}
+\code{y}, or \code{NULL} for the default fitter of the declared family.}
 
 \item{metadata}{A list of descriptive metadata.}
+
+\item{family}{Either \code{"gaussian"} or \code{"logistic"}.}
 }
 \value{
-A \code{gt_adapter} object with \code{id}, \code{fit} and descriptive \code{metadata}.
+A \code{gt_adapter} object with its declared family.
 }
 \description{
 Define a fitting adapter
 }
 \details{
-The default uses \code{stats::lm(y ~ x, na.action = stats::na.fail, singular.ok = FALSE)} on finite, equal-length, rank-two data with more than
-two observations. \code{(Intercept)} maps to \code{alpha} and \code{x} to \code{beta}. Residual
-variance is SSE / (n - 2). It returns two-sided 90\% and 95\% Student t
-intervals
-with n - 2 degrees of freedom. Diagnostics include residual variance,
-coefficient covariance, standard errors, fitted values and residuals.
-Custom fitting functions use their separately allocated global R RNG stream.
+The default Gaussian fitter uses \code{stats::lm} with an intercept and
+slope, estimates residual variance as SSE / (n - 2), and returns 90\% and
+95\% Student t intervals. Logistic fitters must be supplied explicitly or
+created with \code{\link[=gt_glm_adapter]{gt_glm_adapter()}}. Truth is withheld from every fitter.
 }
 \examples{
 gt_adapter()

@@ -2,6 +2,7 @@
 
 export(gt_adapter)
 export(gt_export)
+export(gt_glm_adapter)
 export(gt_replay)
 export(gt_result)
 export(gt_runstudy)
