@@ -2,16 +2,19 @@ Package: groundtruth
 Title: Simulation Studies for Gaussian, Logistic, and Random-Intercept Models
 Version: 0.0.0.9000
 Authors@R: person("Shinichi", "Nakagawa", role = c("aut", "cre"), email = "snakagaw@ualberta.ca")
+Author: Shinichi Nakagawa [aut, cre]
+Maintainer: Shinichi Nakagawa <snakagaw@ualberta.ca>
 Description: Generate independent Gaussian, Bernoulli-logit, and Gaussian
     random-intercept data, compare fitting adapters on paired observations, retain
     every fit attempt, replay recorded random streams, and export data with
     provenance. Summaries report target recovery, Monte Carlo uncertainty, and
     interval coverage with explicit failure denominators. Random-intercept
-    variance targets use maximum-likelihood estimates without variance intervals.
+    variance targets use maximum-likelihood or restricted maximum-likelihood
+    estimates without variance intervals.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1.0)
-Imports: stats, digest
+Imports: stats, digest, parallel, tools
 Suggests: lme4, testthat (>= 3.0.0), roxygen2, pkgdown
 Config/testthat/edition: 3
 URL: https://itchyshin.github.io/groundtruth/, https://github.com/itchyshin/groundtruth

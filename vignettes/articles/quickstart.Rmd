@@ -171,7 +171,7 @@ unavailable. A valid boundary estimate `tau2 = 0` is retained. The R diagnostic 
 `exact_zero` uses `tau2 <= 1e-10`; the reliability map separately reports literal zero
 and the near-boundary ICC threshold, so those flags should not be equated across engines. Failed fits remain in the
 ledger. The two-repetition example explains the interface and does not assess
-calibration. The separate [finite-design reliability map](random-intercept-reliability.Rmd)
+calibration. The separate [finite-design reliability map](random-intercept-reliability.html)
 retains 60,000 attempts across 15 scenarios, including failed fits, few-group
 undercoverage and numerical tolerance exceedances. Strict parity and universal
 calibration are not established.

@@ -26,8 +26,12 @@ studies use v4, which records \code{x_level} in scenarios.csv and generator
 revision \code{random-intercept-v2}. Earlier v3 artifacts remain valid as
 artifacts. Source
 identity is the SHA256 of the sole implementation
-file, R/groundtruth.R, recorded when the package is prepared. It identifies
-the study producer separately from the exporter.
+file, R/groundtruth.R, recorded when the package is prepared. The
+companion \code{implementation_sha256} fingerprints the producer's complete R
+implementation. The optional \code{inference-details.csv} and
+\code{fit-diagnostics.csv} are independently versioned and leave established
+target and attempt CSV schemas unchanged. Exporter hashes are recorded
+separately from producer hashes.
 The CSV writer retains at least 17 significant digits;
 missing values
 are empty fields. Read according to manifest column types. \code{dget()} evaluates

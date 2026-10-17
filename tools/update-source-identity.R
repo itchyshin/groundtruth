@@ -10,7 +10,16 @@ identity <- list(
     file = "R/groundtruth.R",
     algo = "sha256",
     serialize = FALSE
-  )
+  ),
+  implementation_scope = "R/*.R",
+  implementation_sha256 = {
+    files <- sort(list.files("R", pattern = "\\.R$", full.names = TRUE))
+    hashes <- vapply(files, digest::digest, "", file = TRUE, algo = "sha256")
+    digest::digest(
+      paste(paste(files, hashes, sep = "\t"), collapse = "\n"),
+      algo = "sha256", serialize = FALSE
+    )
+  }
 )
 quote_r <- function(x) encodeString(x, quote = "\"")
 writeLines(
@@ -20,7 +29,10 @@ writeLines(
     paste0("  package_version = ", quote_r(identity$package_version), ","),
     paste0("  source_scope = ", quote_r(identity$source_scope), ","),
     "  source_sha256 =",
-    paste0("    ", quote_r(identity$source_sha256)),
+    paste0("    ", quote_r(identity$source_sha256), ","),
+    paste0("  implementation_scope = ", quote_r(identity$implementation_scope), ","),
+    "  implementation_sha256 =",
+    paste0("    ", quote_r(identity$implementation_sha256)),
     ")"
   ),
   "inst/source-identity.R"

@@ -4,18 +4,40 @@
 \alias{gt_lmm_adapter}
 \title{Create the native Gaussian random-intercept adapter}
 \usage{
-gt_lmm_adapter(id = "lmer", metadata = list())
+gt_lmm_adapter(
+  id = "lmer",
+  metadata = list(),
+  criterion = "ML",
+  interval_method = "normal",
+  profile_timeout = 60
+)
 }
 \arguments{
 \item{id}{Adapter identifier.}
 
 \item{metadata}{Descriptive metadata.}
+
+\item{criterion}{Either \code{"ML"} or \code{"REML"} for the variance fit.}
+
+\item{interval_method}{Either \code{"normal"} or \code{"profile"} for fixed effects.
+Profile intervals are available only with ML.}
+
+\item{profile_timeout}{Positive finite wall deadline, in seconds, for the
+isolated native profile helper, including helper startup.}
 }
 \value{
-A \code{random_intercept} \code{gt_adapter} using \code{lme4::lmer} with ML.
+A \code{random_intercept} \code{gt_adapter} using \code{lme4::lmer}.
 }
 \description{
 Create the native Gaussian random-intercept adapter
+}
+\details{
+Fixed-effect normal intervals use the independently reconstructed
+covariance at the selected ML or REML variance estimates. Profile
+intervals use native ML likelihood profiles. A profile failure retains
+accepted estimates and records typed interval states in
+\code{\link[=gt_inference_details]{gt_inference_details()}}. Adapter metadata records the chosen method and
+lme4 version; names beginning \code{gt_inference_} are reserved.
 }
 \examples{
 \dontrun{gt_lmm_adapter()}

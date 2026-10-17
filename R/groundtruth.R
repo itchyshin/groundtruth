@@ -162,20 +162,60 @@ gt_glm_adapter <- function(id = "glm", metadata = list()) {
 #'
 #' @param id Adapter identifier.
 #' @param metadata Descriptive metadata.
-#' @return A `random_intercept` `gt_adapter` using `lme4::lmer` with ML.
+#' @param criterion Either `"ML"` or `"REML"` for the variance fit.
+#' @param interval_method Either `"normal"` or `"profile"` for fixed effects.
+#'   Profile intervals are available only with ML.
+#' @param profile_timeout Positive finite wall deadline, in seconds, for the
+#'   isolated native profile helper, including helper startup.
+#' @return A `random_intercept` `gt_adapter` using `lme4::lmer`.
+#' @details Fixed-effect normal intervals use the independently reconstructed
+#'   covariance at the selected ML or REML variance estimates. Profile
+#'   intervals use native ML likelihood profiles. A profile failure retains
+#'   accepted estimates and records typed interval states in
+#'   [gt_inference_details()]. Adapter metadata records the chosen method and
+#'   lme4 version; names beginning `gt_inference_` are reserved.
 #' @examples
 #' \dontrun{gt_lmm_adapter()}
 #' @export
-gt_lmm_adapter <- function(id = "lmer", metadata = list()) {
+gt_lmm_adapter <- function(
+  id = "lmer", metadata = list(), criterion = "ML",
+  interval_method = "normal", profile_timeout = 60
+) {
   .gt_scalar_character(id, "id", nonempty = TRUE)
   if (!is.list(metadata)) stop("`metadata` must be a list.", call. = FALSE)
-  if (!requireNamespace("lme4", quietly = TRUE)) {
-    stop("Package `lme4` is required; install it to use `gt_lmm_adapter()`.",
-         call. = FALSE)
+  settings <- .gt_validate_lmm_inference(
+    criterion, interval_method, profile_timeout
+  )
+  reserved <- grepl("^gt_inference_", names(metadata))
+  if (any(reserved)) {
+    stop(
+      sprintf("Metadata name `%s` is reserved by gt_lmm_adapter().",
+              names(metadata)[which(reserved)[[1L]]]),
+      call. = FALSE
+    )
   }
-  fit <- function(data) .gt_lmm_fit(data)
-  structure(list(id = id, fit = fit, metadata = metadata,
-                 family = "random_intercept"), class = "gt_adapter")
+  version <- tryCatch(
+    as.character(utils::packageVersion("lme4")),
+    error = function(e) NA_character_
+  )
+  generated <- list(
+    gt_inference_criterion = settings$criterion,
+    gt_inference_interval_method = settings$interval_method,
+    gt_inference_levels = c(.90, .95),
+    gt_inference_engine = "lme4::lmer",
+    gt_inference_engine_version = version
+  )
+  fit <- function(data) .gt_lmm_fit(
+    data, settings$criterion, settings$interval_method,
+    settings$profile_timeout
+  )
+  structure(
+    list(id = id, fit = fit, metadata = c(metadata, generated),
+         family = "random_intercept", criterion = settings$criterion,
+         interval_method = settings$interval_method,
+         profile_timeout = settings$profile_timeout),
+    class = "gt_adapter"
+  )
 }
 
 .gt_make_adapter <- function(id, fit, metadata, family, default_fit) {
@@ -472,8 +512,12 @@ gt_summarize <- function(study) {
 #' revision `random-intercept-v2`. Earlier v3 artifacts remain valid as
 #' artifacts. Source
 #' identity is the SHA256 of the sole implementation
-#' file, R/groundtruth.R, recorded when the package is prepared. It identifies
-#' the study producer separately from the exporter.
+#' file, R/groundtruth.R, recorded when the package is prepared. The
+#' companion `implementation_sha256` fingerprints the producer's complete R
+#' implementation. The optional `inference-details.csv` and
+#' `fit-diagnostics.csv` are independently versioned and leave established
+#' target and attempt CSV schemas unchanged. Exporter hashes are recorded
+#' separately from producer hashes.
 #' The CSV writer retains at least 17 significant digits;
 #' missing values
 #' are empty fields. Read according to manifest column types. `dget()` evaluates
@@ -510,6 +554,14 @@ gt_export <- function(study, path) {
     `seed-map` = study$seed_map,
     scenarios = .gt_scenarios_frame(study$scenarios)
   )
+  inference_details <- gt_inference_details(study)
+  if (nrow(inference_details)) {
+    files[["inference-details"]] <- inference_details
+  }
+  fit_diagnostics <- study$fit_diagnostics
+  if (is.data.frame(fit_diagnostics) && nrow(fit_diagnostics)) {
+    files[["fit-diagnostics"]] <- fit_diagnostics
+  }
   csv_names <- paste0(names(files), ".csv")
   for (i in seq_along(files)) {
     .gt_write_csv(files[[i]], file.path(path, csv_names[i]))
@@ -542,12 +594,22 @@ gt_export <- function(study, path) {
     source_sha256 = study$provenance$source_sha256,
     source_scope = study$provenance$source_scope,
     exporter_source_sha256 = .gt_source_identity()$source_sha256,
+    implementation_scope = study$provenance$implementation_scope,
+    implementation_sha256 = study$provenance$implementation_sha256,
+    exporter_implementation_scope = .gt_source_identity()$implementation_scope,
+    exporter_implementation_sha256 = .gt_source_identity()$implementation_sha256,
     digest_version = as.character(utils::packageVersion("digest")),
     adapters = lapply(study$adapters, function(a) {
       list(id = a$id, family = a$family, metadata = a$metadata)
     }),
     provenance = study$provenance
   )
+  if ("inference-details" %in% names(files)) {
+    manifest$inference_details_schema <- "inference-details-v1"
+  }
+  if ("fit-diagnostics" %in% names(files)) {
+    manifest$fit_diagnostics_schema <- "fit-diagnostics-v1"
+  }
   if (identical(manifest$schema_version, "groundtruth-r-export-v4")) {
     manifest$target_map <- study$target_map
     manifest$target_selection <- study$target_selection
@@ -1248,7 +1310,14 @@ gt_export <- function(study, path) {
             class = c("gt_optimizer_error", "error", "condition"))
 }
 
-.gt_lmm_fit <- function(data) {
+.gt_lmm_fit <- function(
+  data, criterion = "ML", interval_method = "normal", profile_timeout = 60
+) {
+  settings <- .gt_validate_lmm_inference(criterion, interval_method, profile_timeout)
+  if (!requireNamespace("lme4", quietly = TRUE)) {
+    stop("Package `lme4` is required to fit a random-intercept adapter.",
+         call. = FALSE)
+  }
   if (!is.data.frame(data) || !identical(names(data), c("x", "y", "group")) ||
       nrow(data) <= 2L || !is.numeric(data$x) || !is.numeric(data$y) ||
       any(!is.finite(data$x)) || any(!is.finite(data$y)) ||
@@ -1284,7 +1353,7 @@ gt_export <- function(study, path) {
     lme4::lmer(
       y ~ 1 + x + (1 | group),
       data = data.frame(x = x, y = y, group = group),
-      REML = FALSE,
+      REML = identical(settings$criterion, "REML"),
       na.action = stats::na.fail,
       control = control
     ),
@@ -1324,47 +1393,79 @@ gt_export <- function(study, path) {
   estimates <- c(alpha = unname(coefficient[["(Intercept)"]]),
                  beta = unname(coefficient[["x"]]),
                  sigma2 = sigma2, tau2 = tau2)
-  # Independently reconstruct the fixed-effect covariance at the ML variance
-  # estimates, using V = sigma2 I + tau2 Z Z'.
+  # Reconstruct C=(X'V^-1X)^-1 independently at the selected ML or REML
+  # variance estimates, using V = sigma2 I + tau2 Z Z'.
   V <- diag(sigma2, nrow(data))
   for (level in levels(group)) {
     idx <- which(group == level)
     V[idx, idx] <- V[idx, idx, drop = FALSE] + tau2
   }
-  covariance <- tryCatch(
-    solve(crossprod(X, solve(V, X))),
-    error = function(e) NULL
-  )
-  intervals <- NULL
-  interval_message <- "Independent fixed-effect covariance unavailable; intervals omitted."
-  if (!is.null(covariance) && all(is.finite(covariance)) &&
-      all(diag(covariance) >= 0)) {
-    intervals <- do.call(rbind, lapply(c(0.90, 0.95), function(level) {
-      q <- stats::qnorm((1 + level) / 2)
-      se <- sqrt(diag(covariance))
-      data.frame(
-        target = c("alpha", "beta"), level = level,
-        lower = estimates[c("alpha", "beta")] - q * se,
-        upper = estimates[c("alpha", "beta")] + q * se,
-        stringsAsFactors = FALSE
-      )
-    }))
-    interval_message <- ""
+  covariance <- tryCatch(solve(crossprod(X, solve(V, X))), error = function(e) NULL)
+  vinv <- tryCatch(solve(V), error = function(e) NULL)
+  xtvinvx <- tryCatch(crossprod(X, solve(V, X)), error = function(e) NULL)
+  independent_objective <- NA_real_
+  if (!is.null(vinv) && !is.null(xtvinvx)) {
+    ld_v <- determinant(V, logarithm = TRUE)
+    ld_x <- determinant(xtvinvx, logarithm = TRUE)
+    residual <- y - drop(X %*% unname(coefficient))
+    quadratic <- drop(crossprod(residual, vinv %*% residual))
+    if (ld_v$sign > 0 && ld_x$sign > 0 && is.finite(quadratic)) {
+      independent_objective <- if (identical(settings$criterion, "ML")) {
+        (length(y) * log(2 * pi) + as.numeric(ld_v$modulus) + quadratic) / 2
+      } else {
+        ((length(y) - ncol(X)) * log(2 * pi) + as.numeric(ld_v$modulus) +
+           as.numeric(ld_x$modulus) + quadratic) / 2
+      }
+    }
   }
-  objective <- -as.numeric(stats::logLik(fit))
-  if (!is.finite(objective)) stop("lme4 returned a nonfinite ML objective.", call. = FALSE)
+  native_objective <- tryCatch(-as.numeric(stats::logLik(fit)), error = function(e) NA_real_)
+  if (!is.finite(native_objective)) {
+    stop("lme4 returned a nonfinite objective.", call. = FALSE)
+  }
   exact_zero <- tau2 <= 1e-10
   near_boundary <- tau2 / (sigma2 + tau2) <= 1e-8
-  gt_result(estimates, intervals, message = interval_message, diagnostics = list(
+  group_means_x <- vapply(levels(group), function(g) {
+    values <- x[group == g]
+    if (length(unique(values)) == 1L) values[[1L]] else NA_real_
+  }, numeric(1))
+  group_constant_x <- all(is.finite(group_means_x))
+  tau2_unidentified <- identical(settings$criterion, "REML") &&
+    nlevels(group) == 2L && group_constant_x &&
+    is.finite(diff(range(group_means_x))) && diff(range(group_means_x)) > 0
+  .gt_lmm_result(
+    estimates = estimates,
+    covariance = covariance,
+    criterion = settings$criterion,
+    interval_method = settings$interval_method,
+    profile_timeout = settings$profile_timeout,
+    native_objective_nll = native_objective,
+    independent_objective_nll = independent_objective,
+    profile_fit = if (identical(settings$interval_method, "profile")) fit else NULL,
+    diagnostics = list(
     engine = "lme4::lmer", engine_version = as.character(utils::packageVersion("lme4")),
-    REML = FALSE, optimizer = "bobyqa", optimizer_controls = list(maxfun = 100000L, rhoend = 1e-10),
+    REML = identical(settings$criterion, "REML"), optimizer = "bobyqa",
+    optimizer_controls = list(maxfun = 100000L, rhoend = 1e-10),
     optimizer_code = opt_code, optimizer_evaluations = fit@optinfo$feval,
     optimizer_messages = conv_messages, warnings = fit_warnings,
     converged = TRUE, singular = singular, exact_zero = exact_zero,
-    near_boundary = near_boundary, objective_nll = objective,
+    near_boundary = near_boundary,
+    objective_convention = if (identical(settings$criterion, "ML")) {
+      "Gaussian ML NLL with log|V| and residual quadratic"
+    } else {
+      "Gaussian REML NLL with log|V|, log|X'V^-1X| and residual quadratic"
+    },
     observed_groups = nlevels(group), covariance = covariance,
-    inference = "independent ML plug-in covariance; normal Wald for alpha and beta"
-  ))
+    information_limit = if (tau2_unidentified) {
+      "With two groups and x constant within each group, the REML objective is flat in tau2; its fitted value is not identified."
+    } else NULL,
+    tau2_unidentified = tau2_unidentified,
+    inference = if (identical(settings$interval_method, "normal")) {
+      "independent fixed-effect covariance; normal intervals at 90% and 95%"
+    } else {
+      "native ML likelihood profile for alpha and beta"
+    }
+  )
+  )
 }
 
 #' Detect a zero-residual random-intercept likelihood robustly to offsets
@@ -1416,7 +1517,36 @@ gt_export <- function(study, path) {
     raw_intervals = x$intervals,
     intervals = intervals,
     converged = x$converged,
-    message = message
+    message = message,
+    diagnostics = x$diagnostics
+  )
+}
+
+.gt_fit_diagnostic_row <- function(scenario, rep, adapter, diagnostics) {
+  fields <- c(
+    "engine", "engine_version", "optimizer", "optimizer_code",
+    "optimizer_evaluations", "optimizer_messages", "warnings", "converged",
+    "singular", "tau2_unidentified", "information_limit"
+  )
+  if (!is.list(diagnostics) || !any(fields %in% names(diagnostics))) return(NULL)
+  text <- function(x) {
+    if (is.null(x) || !length(x)) return("")
+    paste(enc2utf8(as.character(x)), collapse = "; ")
+  }
+  data.frame(
+    scenario = scenario, rep = as.integer(rep), adapter = adapter,
+    engine = text(diagnostics$engine),
+    engine_version = text(diagnostics$engine_version),
+    optimizer = text(diagnostics$optimizer),
+    optimizer_code = text(diagnostics$optimizer_code),
+    optimizer_evaluations = text(diagnostics$optimizer_evaluations),
+    optimizer_messages = text(diagnostics$optimizer_messages),
+    warnings = text(diagnostics$warnings),
+    converged = text(diagnostics$converged),
+    singular = text(diagnostics$singular),
+    tau2_unidentified = text(diagnostics$tau2_unidentified),
+    information_limit = text(diagnostics$information_limit),
+    stringsAsFactors = FALSE
   )
 }
 .gt_intervals <- function(x) {
@@ -1551,7 +1681,9 @@ gt_export <- function(study, path) {
   data_rows <- list()
   ledger_rows <- list()
   target_rows <- list()
-  di <- li <- ti <- 0L
+  inference_rows <- list()
+  fit_diagnostic_rows <- list()
+  di <- li <- ti <- ii <- fi <- 0L
   extended <- any(vapply(scenarios, function(s) s$family == "random_intercept", logical(1)))
   for (s in scenarios) {
     for (r in seq_len(reps)) {
@@ -1642,6 +1774,36 @@ gt_export <- function(study, path) {
             } else {
               message <- checked$message
             }
+            if (isTRUE(checked$ok) && identical(status, "ok")) {
+              fit_diagnostic <- .gt_fit_diagnostic_row(
+                s$id, r, a$id, checked$diagnostics
+              )
+              if (!is.null(fit_diagnostic)) {
+                fi <- fi + 1L
+                fit_diagnostic_rows[[fi]] <- fit_diagnostic
+              }
+            }
+          }
+        }
+        if (identical(s$family, "random_intercept") &&
+            !is.null(a$criterion) && !is.null(a$interval_method)) {
+          details <- if (identical(status, "ok") &&
+                         is.data.frame(checked$diagnostics$inference_details)) {
+            checked$diagnostics$inference_details
+          } else {
+            .gt_lmm_failed_details(
+              a,
+              if (identical(status, "invalid_estimate")) "invalid" else "error",
+              message
+            )
+          }
+          if (!is.null(details) && nrow(details)) {
+            ii <- ii + 1L
+            inference_rows[[ii]] <- data.frame(
+              scenario = s$id, rep = as.integer(r), adapter = a$id,
+              details, row.names = NULL, check.names = FALSE,
+              stringsAsFactors = FALSE
+            )
           }
         }
         li <- li + 1L
@@ -1685,6 +1847,14 @@ gt_export <- function(study, path) {
   }
   ledger <- do.call(rbind, ledger_rows)
   targets <- do.call(rbind, target_rows)
+  inference_details <- if (length(inference_rows)) {
+    do.call(rbind, inference_rows)
+  } else {
+    NULL
+  }
+  fit_diagnostics <- if (length(fit_diagnostic_rows)) {
+    do.call(rbind, fit_diagnostic_rows)
+  } else NULL
   structure(
     list(
       scenarios = scenarios,
@@ -1701,11 +1871,15 @@ gt_export <- function(study, path) {
       data = data,
       ledger = ledger,
       targets = targets,
+      inference_details = inference_details,
+      fit_diagnostics = fit_diagnostics,
       provenance = list(
         package = "groundtruth",
         version = .gt_source_identity()$package_version,
         source_sha256 = .gt_source_identity()$source_sha256,
         source_scope = .gt_source_identity()$source_scope,
+        implementation_scope = .gt_source_identity()$implementation_scope,
+        implementation_sha256 = .gt_source_identity()$implementation_sha256,
         data_source = if (extended) "independent R family-specific generator v2" else "independent R family-specific generator v1",
         generator_revision = if (extended) "random-intercept-v2" else NULL,
         families = stats::setNames(lapply(scenarios, function(s) {
@@ -1825,6 +1999,40 @@ gt_export <- function(study, path) {
       stop(sprintf("Study has invalid %s schema.", nm), call. = FALSE)
     }
   }
+  if (!is.null(study$inference_details)) {
+    details <- study$inference_details
+    detail_schema <- c(
+      "scenario", "rep", "adapter", "target", "level", "state",
+      "criterion", "interval_method", "lower", "upper",
+      "root_lr_residual", "endpoint_distance", "elapsed_seconds", "message"
+    )
+    detail_key <- c("scenario", "rep", "adapter", "target", "level")
+    if (!is.data.frame(details) || !identical(names(details), detail_schema) ||
+        anyNA(details[detail_key]) || anyDuplicated(details[detail_key]) ||
+        !all(details$state %in% c("finite", "unbounded", "incomplete", "error", "timeout", "invalid")) ||
+        !all(details$target %in% c("alpha", "beta")) ||
+        !all(details$criterion %in% c("ML", "REML")) ||
+        !all(details$interval_method %in% c("normal", "profile"))) {
+      stop("Study has invalid inference-detail rows.", call. = FALSE)
+    }
+  }
+  if (!is.null(study$fit_diagnostics)) {
+    diagnostic_schema <- c(
+      "scenario", "rep", "adapter", "engine", "engine_version",
+      "optimizer", "optimizer_code", "optimizer_evaluations",
+      "optimizer_messages", "warnings", "converged", "singular",
+      "tau2_unidentified", "information_limit"
+    )
+    diagnostics <- study$fit_diagnostics
+    diagnostic_key <- c("scenario", "rep", "adapter")
+    if (!is.data.frame(diagnostics) ||
+        !identical(names(diagnostics), diagnostic_schema) ||
+        anyNA(diagnostics[diagnostic_key]) ||
+        anyDuplicated(diagnostics[diagnostic_key]) ||
+        !all(vapply(diagnostics[-seq_len(3L)], is.character, logical(1)))) {
+      stop("Study has invalid fit-diagnostic rows.", call. = FALSE)
+    }
+  }
   if (extended && nrow(study$data)) {
     families <- stats::setNames(
       vapply(scenarios, `[[`, "", "family"),
@@ -1911,6 +2119,16 @@ gt_export <- function(study, path) {
       !grepl("^[0-9a-f]{64}$", identity$source_sha256)
   ) {
     stop("Invalid package source identity.", call. = FALSE)
+  }
+  if (!is.null(identity$implementation_scope) ||
+      !is.null(identity$implementation_sha256)) {
+    if (!identical(identity$implementation_scope, "R/*.R") ||
+        length(identity$implementation_sha256) != 1L ||
+        !is.character(identity$implementation_sha256) ||
+        is.na(identity$implementation_sha256) ||
+        !grepl("^[0-9a-f]{64}$", identity$implementation_sha256)) {
+      stop("Invalid package implementation identity.", call. = FALSE)
+    }
   }
   identity
 }

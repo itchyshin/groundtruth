@@ -15,8 +15,10 @@ reference:
   - title: Gaussian random-intercept design
     contents: [gt_ri_scenario, gt_lmm_adapter]
   - title: Run and inspect
-    contents: [gt_runstudy, gt_replay, gt_summarize, gt_export]
+    contents: [gt_runstudy, gt_replay, gt_summarize, gt_export,
+      gt_inference_details, gt_compare_inference]
 articles:
 - title: Work with a study
   navbar: ~
-  contents: [articles/quickstart, articles/random-intercept-reliability]
+  contents: [articles/quickstart, articles/random-intercept-inference,
+    articles/random-intercept-reliability]

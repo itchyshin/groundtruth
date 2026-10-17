@@ -4,8 +4,9 @@
 separates data generation from fitting, gives adapters paired observations, and reports
 the denominators behind interval coverage. Established workflows support Gaussian linear
 regression and fixed-effect logistic scenarios through a native R adapter. An optional
-Gaussian random-intercept ML workflow also reports coefficient and variance targets;
-its [finite-design reliability map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.html)
+Gaussian random-intercept workflow also reports coefficient and variance targets. Its
+[inference comparison guide](https://itchyshin.github.io/groundtruth/articles/random-intercept-inference.html)
+explains ML/REML and coefficient-interval choices. The [finite-design reliability map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.html)
 retains failures, few-group undercoverage and numerical discrepancies.
 
 ## Gaussian model
@@ -207,6 +208,13 @@ lack `x_level` default to `"observation"` when normalized for replay. The
 reports 30,000 shared datasets and 60,000 attempts. It preserves failed fits,
 numerical tolerance exceedances and poor interval coverage with few groups.
 These findings do not establish package-wide parity or universal calibration.
+
+The default adapter fits by ML and uses approximate normal plug-in intervals. You can
+also request REML with normal intervals or ML with fixed-effect profile intervals.
+The [inference comparison guide](https://itchyshin.github.io/groundtruth/articles/random-intercept-inference.html)
+shows how to compare these methods on the same simulated data and inspect finite,
+unbounded, incomplete, error, timeout and invalid interval outcomes. These options do
+not establish calibration.
 
 The R diagnostic `exact_zero` uses `tau2 <= 1e-10`. The reliability map reports literal
 zero and near-boundary counts separately. Its frozen campaign predates the small-response
