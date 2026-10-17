@@ -11,10 +11,17 @@
 - [`gt_result()`](https://itchyshin.github.io/groundtruth/reference/gt_result.md)
   : Construct a fitting result
 
+## Gaussian random-intercept design
+
+- [`gt_ri_scenario()`](https://itchyshin.github.io/groundtruth/reference/gt_ri_scenario.md)
+  : Define a Gaussian random-intercept scenario
+- [`gt_lmm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_lmm_adapter.md)
+  : Create the native Gaussian random-intercept adapter
+
 ## Run and inspect
 
 - [`gt_runstudy()`](https://itchyshin.github.io/groundtruth/reference/gt_runstudy.md)
-  : Run a reproducible Gaussian or logistic simulation study
+  : Run a reproducible simulation study
 - [`gt_replay()`](https://itchyshin.github.io/groundtruth/reference/gt_replay.md)
   : Replay a recorded simulation study
 - [`gt_summarize()`](https://itchyshin.github.io/groundtruth/reference/gt_summarize.md)

@@ -18,7 +18,7 @@ gt_result(
 
 - estimates:
 
-  Named numeric estimates for `alpha` and `beta`.
+  A non-empty named numeric vector of finite estimates.
 
 - intervals:
 
@@ -43,14 +43,15 @@ optional diagnostics.
 
 ## Details
 
-Estimates must name `alpha` and `beta` exactly once. Missing, duplicate,
-extra or nonfinite point targets reject the result. Intervals use
-columns `target`, `level`, `lower`, `upper`, at levels 0.90 and 0.95.
-Missing, duplicate, nonfinite or reversed intervals retain accepted
-points and exclude the affected interval. Malformed or unsupported
-interval labels make the interval schema unusable; no arbitrary name
-alignment is performed. A fit exception or nonconvergence rejects both
-coefficient targets.
+Estimate names must be unique, non-empty, and finite. The runner checks
+that names match the complete target set for the scenario family.
+Missing, duplicate, or nonfinite estimates reject the result. Intervals
+use columns `target`, `level`, `lower`, `upper`, at levels 0.90 and
+0.95. Missing, duplicate, nonfinite or reversed intervals retain
+accepted points and exclude the affected interval. Malformed or
+unsupported interval labels make the interval schema unusable; no
+arbitrary name alignment is performed. A fit exception or nonconvergence
+rejects both coefficient targets.
 
 ## Examples
 

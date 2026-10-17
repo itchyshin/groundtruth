@@ -1,6 +1,6 @@
-# Run a reproducible Gaussian or logistic simulation study
+# Run a reproducible simulation study
 
-Run a reproducible Gaussian or logistic simulation study
+Run a reproducible simulation study
 
 ## Usage
 
@@ -9,7 +9,8 @@ gt_runstudy(
   scenarios,
   adapters = list(gt_adapter()),
   reps = 10L,
-  seed = "20261004"
+  seed = "20261004",
+  targets = NULL
 )
 ```
 
@@ -33,6 +34,12 @@ gt_runstudy(
   every digit, including labels above 2^53; numeric inputs must be exact
   integers no larger than 2^53.
 
+- targets:
+
+  Optional target subset. When `NULL`, each scenario uses the complete
+  default target set for its family. An explicit subset must be
+  supported by every scenario in the study.
+
 ## Value
 
 A `gt_study` list containing `scenarios`, `adapters`, `reps`,
@@ -50,6 +57,10 @@ seed (including absence) on success and error. Ambient Box-Muller is
 refused before mutation because cached normal state cannot be safely
 restored. Reordering the same input set is invariant; adding keys may
 change rare collision allocations. R and Julia draws differ.
+Random-intercept studies record `x_level` and generator revision
+`random-intercept-v2` in scenario metadata and provenance. Legacy R
+scenarios without `x_level` normalize to observation-level predictors on
+replay.
 
 ## Examples
 

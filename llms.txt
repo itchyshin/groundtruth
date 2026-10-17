@@ -3,11 +3,12 @@
 `groundtruth` runs small simulation studies with a record of every fit
 attempt. It separates data generation from fitting, gives adapters
 paired observations, and reports the denominators behind interval
-coverage. It supports Gaussian linear regression and fixed-effect
-logistic scenarios through a native R adapter. R 4.6.0 checked
-development version 0.0.0.9000: 346 assertions passed with `Status: OK`
-and no NOTE. The pkgdown 2.2.0 preview rendered and its link checks
-passed.
+coverage. Established workflows support Gaussian linear regression and
+fixed-effect logistic scenarios through a native R adapter. An optional
+Gaussian random-intercept ML workflow also reports coefficient and
+variance targets; its [finite-design reliability
+map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.html)
+retains failures, few-group undercoverage and numerical discrepancies.
 
 ## Gaussian model
 
@@ -162,9 +163,11 @@ five rejected-design fixtures. Maximum paired absolute differences were
 endpoints and 9.99e-16 for mean negative log likelihood. The comparisons
 cover one-predictor Bernoulli models with unit weights and reused
 references, not new reference fits. They do not establish calibration,
-fitted GLMM behavior or package-wide parity. R 4.6.0 checked development
-version 0.0.0.9000: 346 assertions passed with `Status: OK` and no NOTE.
-The local pkgdown 2.2.0 preview rendered successfully.
+fitted GLMM behavior or package-wide parity. In the earlier fixed-effect
+package, R 4.6.0 reported 346 assertions passed with `Status: OK` and no
+NOTE, and the pkgdown 2.2.0 preview rendered successfully. Those
+retained checks do not validate the Gaussian random-intercept ML
+workflow; see its separate reliability map below.
 
 The Julia public reference is [GroundTruth.jl commit
 3738bfe](https://github.com/itchyshin/GroundTruth.jl/tree/3738bfe340fff62ec1afb0a78f0101babe79fbd7),
@@ -185,6 +188,69 @@ For source maintenance, run
 refreshes the implementation hash and package version bundled in export
 provenance. The development package version remains 0.0.0.9000.
 
+## Gaussian random-intercept model
+
+The optional adapter supports Gaussian random-intercept maximum
+likelihood for `y ~ 1 + x + (1 | group)`. In addition to `alpha` and
+`beta`, it scores residual variance `sigma2` and group-intercept
+variance `tau2`. The default `x_level = "observation"` draws an
+independent standard-normal predictor for each observation. Set
+`x_level = "group"` to draw one standard-normal predictor per group and
+repeat it for that group’s observations in canonical group order
+(including when group sizes differ). In either mode, predictor draws are
+independent of group effects and residual errors.
+
+``` r
+
+library(groundtruth)
+
+scenario <- gt_ri_scenario("grouped-example", n_groups = 20L,
+                           group_sizes = 6L, alpha = 1, beta = 0.7,
+                           sigma = 1, tau = 0.5,
+                           x_level = "observation")
+group_scenario <- gt_ri_scenario("group-x-example", n_groups = 20L,
+                                 group_sizes = 6L, alpha = 1, beta = 0.7,
+                                 sigma = 1, tau = 0.5,
+                                 x_level = "group")
+study <- gt_runstudy(scenario, adapters = gt_lmm_adapter(),
+                     reps = 2L, seed = "20261006")
+gt_summarize(study)
+```
+
+The optional `lme4` dependency is required for
+[`gt_lmm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_lmm_adapter.md)
+and must be installed separately. R custom fitters receive a data frame
+with exactly `x`, `y`, and `group`. The adapter uses ML
+(`REML = FALSE`). Coefficient intervals are approximate normal plug-in
+intervals at 90% and 95%; variance targets are point-only, so their
+interval coverage is unavailable. A converged boundary estimate
+`tau2 = 0` is valid. Failed fits remain in the attempt ledger. Two
+repetitions illustrate the workflow and are not calibration evidence.
+The conditional residual ICC given `x` is `tau^2 / (tau^2 + sigma^2)`.
+With group-level `x`, shared predictor variation also contributes to
+unconditional same-group response correlation, so a conditional ICC of
+0.2 does not mean unconditional response correlation is 0.2.
+
+The generator revision is `random-intercept-v2`. Study provenance
+retains the predictor level and revision, and replay uses the recorded R
+seeds and RNG settings. R and Julia keep distinct random-number
+algorithms; matching seed labels do not imply identical draws.
+Random-intercept exports use schema v4, whose `scenarios.csv` records
+`x_level`; existing v3 artifacts remain supported as artifacts. Legacy R
+scenarios or studies that lack `x_level` default to `"observation"` when
+normalized for replay. The [finite-design reliability
+map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.html)
+reports 30,000 shared datasets and 60,000 attempts. It preserves failed
+fits, numerical tolerance exceedances and poor interval coverage with
+few groups. These findings do not establish package-wide parity or
+universal calibration.
+
+The R diagnostic `exact_zero` uses `tau2 <= 1e-10`. The reliability map
+reports literal zero and near-boundary counts separately. Its frozen
+campaign predates the small-response unit correction to the R
+residual-degeneracy guard; the report page records both source hashes
+and the distinction from a new campaign.
+
 # Package index
 
 ## Define a comparison
@@ -198,10 +264,17 @@ provenance. The development package version remains 0.0.0.9000.
 - [`gt_result()`](https://itchyshin.github.io/groundtruth/reference/gt_result.md)
   : Construct a fitting result
 
+## Gaussian random-intercept design
+
+- [`gt_ri_scenario()`](https://itchyshin.github.io/groundtruth/reference/gt_ri_scenario.md)
+  : Define a Gaussian random-intercept scenario
+- [`gt_lmm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_lmm_adapter.md)
+  : Create the native Gaussian random-intercept adapter
+
 ## Run and inspect
 
 - [`gt_runstudy()`](https://itchyshin.github.io/groundtruth/reference/gt_runstudy.md)
-  : Run a reproducible Gaussian or logistic simulation study
+  : Run a reproducible simulation study
 - [`gt_replay()`](https://itchyshin.github.io/groundtruth/reference/gt_replay.md)
   : Replay a recorded simulation study
 - [`gt_summarize()`](https://itchyshin.github.io/groundtruth/reference/gt_summarize.md)
@@ -215,3 +288,5 @@ provenance. The development package version remains 0.0.0.9000.
 
 - [Paired data, replay and honest
   denominators](https://itchyshin.github.io/groundtruth/articles/quickstart.md):
+- [Gaussian random-intercept reliability
+  map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.md):

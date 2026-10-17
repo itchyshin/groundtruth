@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Paired data, replay and honest denominators</a></li>
+    <li><a class="dropdown-item" href="../articles/random-intercept-reliability.html">Gaussian random-intercept reliability map</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -55,7 +56,7 @@
 
 
 <dl><dt id="arg-estimates">estimates<a class="anchor" aria-label="anchor" href="#arg-estimates"></a></dt>
-<dd><p>Named numeric estimates for <code>alpha</code> and <code>beta</code>.</p></dd>
+<dd><p>A non-empty named numeric vector of finite estimates.</p></dd>
 
 
 <dt id="arg-intervals">intervals<a class="anchor" aria-label="anchor" href="#arg-intervals"></a></dt>
@@ -82,8 +83,9 @@ and optional diagnostics.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Estimates must name <code>alpha</code> and <code>beta</code> exactly once. Missing,
-duplicate, extra or nonfinite point targets reject the result. Intervals
+    <p>Estimate names must be unique, non-empty, and finite. The runner
+checks that names match the complete target set for the scenario family.
+Missing, duplicate, or nonfinite estimates reject the result. Intervals
 use columns <code>target</code>, <code>level</code>, <code>lower</code>, <code>upper</code>, at levels 0.90 and 0.95.
 Missing, duplicate, nonfinite or reversed intervals retain accepted points
 and exclude the affected interval. Malformed or unsupported interval labels

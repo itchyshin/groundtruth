@@ -28,7 +28,9 @@ A newly computed `gt_study` with the recorded random-stream map.
 Only the recognized recorded RNG version/settings are accepted. Replay
 validates and reuses the full map. Deterministic/stateless adapters
 replay in the same environment; external inputs and closure state remain
-the caller's responsibility.
+the caller's responsibility. Random-intercept scenarios record `x_level`
+and generator revision `random-intercept-v2`. Legacy R scenarios without
+`x_level` normalize to observation-level predictors during replay.
 
 ## Examples
 

@@ -9,12 +9,12 @@
 Source:
 [`DESCRIPTION`](https://github.com/itchyshin/groundtruth/blob/main/DESCRIPTION)
 
-Nakagawa S (2026). *groundtruth: Simulation Studies for Gaussian and
-Logistic Regression*. R package version 0.0.0.9000,
+Nakagawa S (2026). *groundtruth: Simulation Studies for Gaussian,
+Logistic, and Random-Intercept Models*. R package version 0.0.0.9000,
 <https://itchyshin.github.io/groundtruth/>.
 
     @Manual{,
-      title = {groundtruth: Simulation Studies for Gaussian and Logistic Regression},
+      title = {groundtruth: Simulation Studies for Gaussian, Logistic, and Random-Intercept Models},
       author = {Shinichi Nakagawa},
       year = {2026},
       note = {R package version 0.0.0.9000},

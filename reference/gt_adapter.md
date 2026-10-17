@@ -25,7 +25,7 @@ gt_adapter(id = "lm", fit = NULL, metadata = list(), family = "gaussian")
 
 - family:
 
-  Either `"gaussian"` or `"logistic"`.
+  A supported scenario family.
 
 ## Value
 
@@ -36,9 +36,11 @@ A `gt_adapter` object with its declared family.
 The default Gaussian fitter uses
 [`stats::lm`](https://rdrr.io/r/stats/lm.html) with an intercept and
 slope, estimates residual variance as SSE / (n - 2), and returns 90% and
-95% Student t intervals. Logistic fitters must be supplied explicitly or
-created with
-[`gt_glm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_glm_adapter.md).
+95% Student t intervals. Logistic and random-intercept fitters must be
+supplied explicitly or created with
+[`gt_glm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_glm_adapter.md)
+and
+[`gt_lmm_adapter()`](https://itchyshin.github.io/groundtruth/reference/gt_lmm_adapter.md).
 Truth is withheld from every fitter.
 
 ## Examples
@@ -80,7 +82,7 @@ gt_adapter()
 #>         covariance = covariance, se = se, predictions = stats::fitted(fit), 
 #>         residuals = stats::residuals(fit)))
 #> }
-#> <bytecode: 0x55d62dc77b60>
+#> <bytecode: 0x561ed84e44e8>
 #> <environment: namespace:groundtruth>
 #> 
 #> $metadata

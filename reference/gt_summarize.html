@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Paired data, replay and honest denominators</a></li>
+    <li><a class="dropdown-item" href="../articles/random-intercept-reliability.html">Gaussian random-intercept reliability map</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
  <input class="form-control" type="search" name="search-input" id="search-input" autocomplete="off" aria-label="Search site" placeholder="Search for" data-search-index="../search.json"></form></li>
@@ -68,7 +69,9 @@ covered_per_attempt uses all attempts. Coverage uncertainty has a Wilson 95%
 Monte Carlo interval. All-failed bias/RMSE/conditional coverage are NA and
 covered_per_attempt is zero. Singleton MCSE is NA; zero RMSE with k &gt; 1
 has MCSE zero. These are Monte Carlo uncertainty summaries, not a claim
-of estimator calibration.</p>
+of estimator calibration. In random-intercept studies, variance targets
+are point-only and have no expected intervals; their coverage fields are
+<code>NA</code> and they do not enter interval denominators.</p>
     </div>
 
     <div class="section level2">

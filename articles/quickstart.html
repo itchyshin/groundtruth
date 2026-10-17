@@ -39,6 +39,7 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><a class="dropdown-item" href="../articles/quickstart.html">Paired data, replay and honest denominators</a></li>
+    <li><a class="dropdown-item" href="../articles/random-intercept-reliability.html">Gaussian random-intercept reliability map</a></li>
   </ul>
 </li>
       </ul>
@@ -274,6 +275,68 @@ calibration or package-wide parity. R 4.6.0 checked version 0.0.0.9000:
 346 assertions passed with <code>Status: OK</code>; the pkgdown 2.2.0
 preview rendered. These checks support the declared fixed-effect
 workflow.</p>
+</div>
+<div class="section level2">
+<h2 id="fit-a-gaussian-random-intercept-model">Fit a Gaussian random-intercept model<a class="anchor" aria-label="anchor" href="#fit-a-gaussian-random-intercept-model"></a>
+</h2>
+<p>The optional random-intercept adapter supports the Gaussian model</p>
+<p><math display="block" xmlns="http://www.w3.org/1998/Math/MathML"><semantics><mrow><msub><mi>y</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mi>α</mi><mo>+</mo><mi>β</mi><msub><mi>x</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>+</mo><msub><mi>u</mi><mi>j</mi></msub><mo>+</mo><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>u</mi><mi>j</mi></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msup><mi>τ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo><mo>,</mo><mspace width="2.0em"></mspace><msub><mi>ϵ</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>∼</mo><mi>N</mi><mo stretchy="false" form="prefix">(</mo><mn>0</mn><mo>,</mo><msup><mi>σ</mi><mn>2</mn></msup><mo stretchy="false" form="postfix">)</mo><mi>.</mi></mrow><annotation encoding="application/x-tex">
+y_{ij} = \alpha + \beta x_{ij} + u_j + \epsilon_{ij}, \qquad
+u_j \sim N(0, \tau^2), \qquad
+\epsilon_{ij} \sim N(0, \sigma^2).
+</annotation></semantics></math></p>
+<p>The R interface uses <code><a href="../reference/gt_ri_scenario.html">gt_ri_scenario()</a></code> and the optional
+<code>lme4</code> adapter:</p>
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">scenario</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_ri_scenario.html">gt_ri_scenario</a></span><span class="op">(</span><span class="st">"grouped-example"</span>, n_groups <span class="op">=</span> <span class="fl">20L</span>,</span>
+<span>                           group_sizes <span class="op">=</span> <span class="fl">6L</span>, alpha <span class="op">=</span> <span class="fl">1</span>, beta <span class="op">=</span> <span class="fl">0.7</span>,</span>
+<span>                           sigma <span class="op">=</span> <span class="fl">1</span>, tau <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>                           x_level <span class="op">=</span> <span class="st">"observation"</span><span class="op">)</span></span>
+<span><span class="va">group_scenario</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_ri_scenario.html">gt_ri_scenario</a></span><span class="op">(</span><span class="st">"group-x-example"</span>, n_groups <span class="op">=</span> <span class="fl">20L</span>,</span>
+<span>                                 group_sizes <span class="op">=</span> <span class="fl">6L</span>, alpha <span class="op">=</span> <span class="fl">1</span>, beta <span class="op">=</span> <span class="fl">0.7</span>,</span>
+<span>                                 sigma <span class="op">=</span> <span class="fl">1</span>, tau <span class="op">=</span> <span class="fl">0.5</span>,</span>
+<span>                                 x_level <span class="op">=</span> <span class="st">"group"</span><span class="op">)</span></span>
+<span><span class="va">study</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_runstudy.html">gt_runstudy</a></span><span class="op">(</span><span class="va">scenario</span>, adapters <span class="op">=</span> <span class="fu"><a href="../reference/gt_lmm_adapter.html">gt_lmm_adapter</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>                     reps <span class="op">=</span> <span class="fl">2L</span>, seed <span class="op">=</span> <span class="st">"20261006"</span><span class="op">)</span></span>
+<span><span class="va">group_study</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/gt_runstudy.html">gt_runstudy</a></span><span class="op">(</span><span class="va">group_scenario</span>, adapters <span class="op">=</span> <span class="fu"><a href="../reference/gt_lmm_adapter.html">gt_lmm_adapter</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>                           reps <span class="op">=</span> <span class="fl">2L</span>, seed <span class="op">=</span> <span class="st">"20261006"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/gt_summarize.html">gt_summarize</a></span><span class="op">(</span><span class="va">study</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/gt_summarize.html">gt_summarize</a></span><span class="op">(</span><span class="va">group_study</span><span class="op">)</span></span></code></pre></div>
+<p>Install <code>lme4</code> separately before running the example. R
+custom fitters receive a data frame with exactly <code>x</code>,
+<code>y</code>, and <code>group</code>. The adapter fits by maximum
+likelihood with <code>REML = FALSE</code>. It returns point estimates
+for <code>alpha</code>, <code>beta</code>, <code>sigma2</code>, and
+<code>tau2</code>. Approximate normal plug-in intervals at 90% and 95%
+are available for the coefficients; variance components remain
+point-only and their interval coverage is unavailable. A valid boundary
+estimate <code>tau2 = 0</code> is retained. The R diagnostic named
+<code>exact_zero</code> uses <code>tau2 &lt;= 1e-10</code>; the
+reliability map separately reports literal zero and the near-boundary
+ICC threshold, so those flags should not be equated across engines.
+Failed fits remain in the ledger. The two-repetition example explains
+the interface and does not assess calibration. The separate <a href="random-intercept-reliability.Rmd">finite-design reliability
+map</a> retains 60,000 attempts across 15 scenarios, including failed
+fits, few-group undercoverage and numerical tolerance exceedances.
+Strict parity and universal calibration are not established.</p>
+<p>The default <code>x_level = "observation"</code> draws one
+independent predictor per observation. With
+<code>x_level = "group"</code>, the generator draws one standard-normal
+value per group and expands it over observations in canonical group
+order, using the declared group sizes. Predictors remain independent of
+random intercepts and residual errors. The conditional residual ICC
+given <code>x</code> is <code>tau^2 / (tau^2 + sigma^2)</code>. Shared
+group-level predictors also affect unconditional same-group response
+correlation, so the conditional ICC does not describe that unconditional
+correlation.</p>
+<p>The generator revision is <code>random-intercept-v2</code>; scenario
+provenance records <code>x_level</code> and replay uses the recorded R
+seed and RNG settings. The R and Julia RNG algorithms are distinct, and
+matching seed labels do not produce identical draws. Random-intercept R
+exports use schema v4 with <code>x_level</code> in
+<code>scenarios.csv</code>; existing v3 artifacts are preserved. Legacy
+R scenario/study objects without this field default to
+<code>"observation"</code> during normalization and replay.</p>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside>

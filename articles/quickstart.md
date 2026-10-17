@@ -237,3 +237,70 @@ CSV inputs. The fixed-effect fixture results do not establish
 calibration or package-wide parity. R 4.6.0 checked version 0.0.0.9000:
 346 assertions passed with `Status: OK`; the pkgdown 2.2.0 preview
 rendered. These checks support the declared fixed-effect workflow.
+
+## Fit a Gaussian random-intercept model
+
+The optional random-intercept adapter supports the Gaussian model
+
+``` math
+y_{ij} = \alpha + \beta x_{ij} + u_j + \epsilon_{ij}, \qquad
+u_j \sim N(0, \tau^2), \qquad
+\epsilon_{ij} \sim N(0, \sigma^2).
+```
+
+The R interface uses
+[`gt_ri_scenario()`](https://itchyshin.github.io/groundtruth/reference/gt_ri_scenario.md)
+and the optional `lme4` adapter:
+
+``` r
+
+scenario <- gt_ri_scenario("grouped-example", n_groups = 20L,
+                           group_sizes = 6L, alpha = 1, beta = 0.7,
+                           sigma = 1, tau = 0.5,
+                           x_level = "observation")
+group_scenario <- gt_ri_scenario("group-x-example", n_groups = 20L,
+                                 group_sizes = 6L, alpha = 1, beta = 0.7,
+                                 sigma = 1, tau = 0.5,
+                                 x_level = "group")
+study <- gt_runstudy(scenario, adapters = gt_lmm_adapter(),
+                     reps = 2L, seed = "20261006")
+group_study <- gt_runstudy(group_scenario, adapters = gt_lmm_adapter(),
+                           reps = 2L, seed = "20261006")
+gt_summarize(study)
+gt_summarize(group_study)
+```
+
+Install `lme4` separately before running the example. R custom fitters
+receive a data frame with exactly `x`, `y`, and `group`. The adapter
+fits by maximum likelihood with `REML = FALSE`. It returns point
+estimates for `alpha`, `beta`, `sigma2`, and `tau2`. Approximate normal
+plug-in intervals at 90% and 95% are available for the coefficients;
+variance components remain point-only and their interval coverage is
+unavailable. A valid boundary estimate `tau2 = 0` is retained. The R
+diagnostic named `exact_zero` uses `tau2 <= 1e-10`; the reliability map
+separately reports literal zero and the near-boundary ICC threshold, so
+those flags should not be equated across engines. Failed fits remain in
+the ledger. The two-repetition example explains the interface and does
+not assess calibration. The separate [finite-design reliability
+map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.Rmd)
+retains 60,000 attempts across 15 scenarios, including failed fits,
+few-group undercoverage and numerical tolerance exceedances. Strict
+parity and universal calibration are not established.
+
+The default `x_level = "observation"` draws one independent predictor
+per observation. With `x_level = "group"`, the generator draws one
+standard-normal value per group and expands it over observations in
+canonical group order, using the declared group sizes. Predictors remain
+independent of random intercepts and residual errors. The conditional
+residual ICC given `x` is `tau^2 / (tau^2 + sigma^2)`. Shared
+group-level predictors also affect unconditional same-group response
+correlation, so the conditional ICC does not describe that unconditional
+correlation.
+
+The generator revision is `random-intercept-v2`; scenario provenance
+records `x_level` and replay uses the recorded R seed and RNG settings.
+The R and Julia RNG algorithms are distinct, and matching seed labels do
+not produce identical draws. Random-intercept R exports use schema v4
+with `x_level` in `scenarios.csv`; existing v3 artifacts are preserved.
+Legacy R scenario/study objects without this field default to
+`"observation"` during normalization and replay.
