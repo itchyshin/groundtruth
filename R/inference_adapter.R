@@ -306,7 +306,7 @@
     identical(dim(covariance), c(2L, 2L)) && all(is.finite(covariance)) &&
     all(diag(covariance) >= 0)
   standard_errors <- if (valid_covariance) {
-    setNames(sqrt(diag(covariance)), c("alpha", "beta"))
+    stats::setNames(sqrt(diag(covariance)), c("alpha", "beta"))
   } else {
     c(alpha = NA_real_, beta = NA_real_)
   }
