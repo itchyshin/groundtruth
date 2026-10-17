@@ -16,3 +16,5 @@
 ^\.ignore$
 ^graft$
 ^LOOP($|/)
+^pkgdown($|/)
+^vignettes/ri-reliability($|/)

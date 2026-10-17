@@ -1,8 +1,18 @@
-test_that("invalid point targets are rejected", {
+test_that("gt_result rejects malformed names and accepts generic point sets", {
   expect_error(gt_result(c(alpha = 1, alpha = 2)))
-  expect_error(gt_result(c(alpha = 1)))
-  expect_error(gt_result(c(alpha = 1, beta = 2, gamma = 3)))
   expect_error(gt_result(c(alpha = 1, beta = NaN)))
+  expect_named(gt_result(c(alpha = 1))$estimates, "alpha")
+  expect_named(gt_result(c(alpha = 1, beta = 2, gamma = 3))$estimates,
+               c("alpha", "beta", "gamma"))
+})
+
+test_that("scenario-family runner rejects incomplete and extra point targets", {
+  for (bad in list(c(alpha = 1), c(alpha = 1, beta = 2, gamma = 3))) {
+    adapter <- gt_adapter("bad-targets", function(data) gt_result(bad))
+    study <- gt_study(adapters = adapter)
+    expect_identical(study$ledger$status, "invalid_estimate")
+    expect_true(all(is.na(study$targets$estimate)))
+  }
 })
 
 test_that("interval defects retain valid points", {

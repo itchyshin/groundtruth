@@ -30,15 +30,20 @@ test_that("runner rejects bad scenarios data and malformed result names", {
   })
   study <- gt_study(adapters = list(bad_data))
   expect_identical(study$ledger$status, "fit_error")
-  for (bad in list(
-    c(alpha = 1, beta = 2, gamma = 3),
-    c(alpha = 1),
-    c(alpha = 1, beta = Inf),
-    c(alpha = 1, alpha = 2)
-  )) {
+  # Finite named estimate sets now reach family-aware runner validation, so
+  # missing/extra targets are invalid_estimate; malformed values still fail
+  # inside gt_result() and remain fit_error.
+  cases <- list(
+    list(estimates = c(alpha = 1, beta = 2, gamma = 3), status = "invalid_estimate"),
+    list(estimates = c(alpha = 1), status = "invalid_estimate"),
+    list(estimates = c(alpha = 1, beta = Inf), status = "fit_error"),
+    list(estimates = c(alpha = 1, alpha = 2), status = "fit_error")
+  )
+  for (case in cases) {
+    bad <- case$estimates
     a <- gt_adapter("bad", function(data) gt_result(bad))
     s <- gt_study(adapters = list(a))
-    expect_identical(s$ledger$status, "fit_error")
+    expect_identical(s$ledger$status, case$status)
     expect_true(all(is.na(s$targets$estimate)))
   }
 })

@@ -19,6 +19,9 @@ gt_scenario <- function(
 ) {
   .gt_scalar_character(id, "id", nonempty = TRUE)
   .gt_family(family)
+  if (identical(family, "random_intercept")) {
+    stop("Use `gt_ri_scenario()` for a random-intercept design.", call. = FALSE)
+  }
   if (
     length(n) != 1L || is.na(n) || !is.numeric(n) || !is.finite(n) ||
       n != floor(n) || n > .Machine$integer.max || n <= 2L
@@ -45,17 +48,94 @@ gt_scenario <- function(
             class = "gt_scenario")
 }
 
+#' Define a Gaussian random-intercept scenario
+#'
+#' @param id A non-empty scalar character identifier.
+#' @param n_groups Number of groups, at least two.
+#' @param group_sizes A positive integer scalar repeated across groups, or one
+#'   positive integer size for each group. At least one group must be replicated.
+#' @param alpha Population intercept.
+#' @param beta Population slope for `x`.
+#' @param sigma Positive residual standard deviation.
+#' @param tau Non-negative random-intercept standard deviation.
+#' @param x_level Either `"observation"` (one independent standard-normal
+#'   predictor per observation; the default) or `"group"` (one independent
+#'   standard-normal predictor per group, expanded to that group's observations
+#'   in canonical group order).
+#' @details Predictor draws are independent of random intercepts and residual
+#'   errors. The conditional residual ICC given x is
+#'   tau^2 / (tau^2 + sigma^2). A shared group-level predictor also contributes
+#'   to unconditional same-group response correlation. The scenario records
+#'   `x_level` and uses generator revision `random-intercept-v2`.
+#' @return A `gt_scenario` for the Gaussian random-intercept model.
+#' @examples
+#' gt_ri_scenario("clusters", n_groups = 5L, group_sizes = 4L)
+#' @export
+gt_ri_scenario <- function(
+  id, n_groups = 20L, group_sizes = 6L,
+  alpha = 1, beta = 0.7, sigma = 1, tau = 0.5,
+  x_level = "observation"
+) {
+  .gt_scalar_character(id, "id", nonempty = TRUE)
+  if (length(x_level) != 1L || !is.character(x_level) || is.na(x_level) ||
+      !x_level %in% c("observation", "group")) {
+    stop("`x_level` must be `observation` or `group`.", call. = FALSE)
+  }
+  .gt_integer_scalar(n_groups, "n_groups", minimum = 2L)
+  if (!is.numeric(group_sizes) || !length(group_sizes) ||
+      anyNA(group_sizes) || any(!is.finite(group_sizes)) ||
+      any(group_sizes != floor(group_sizes)) || any(group_sizes < 1L) ||
+      any(group_sizes > .Machine$integer.max)) {
+    stop("`group_sizes` must contain positive finite integers.", call. = FALSE)
+  }
+  if (length(group_sizes) == 1L) {
+    group_sizes <- rep(as.integer(group_sizes), n_groups)
+  } else if (length(group_sizes) != n_groups) {
+    stop("A vector `group_sizes` must have length `n_groups`.", call. = FALSE)
+  }
+  group_sizes <- as.integer(group_sizes)
+  if (!any(group_sizes > 1L)) {
+    stop("At least one group must contain repeated observations.", call. = FALSE)
+  }
+  n <- sum(as.double(group_sizes))
+  if (!is.finite(n) || n > .Machine$integer.max) {
+    stop("The sum of `group_sizes` is too large.", call. = FALSE)
+  }
+  for (nm in c("alpha", "beta")) {
+    value <- get(nm, inherits = FALSE)
+    if (length(value) != 1L || !is.numeric(value) || is.na(value) ||
+        !is.finite(value)) {
+      stop(sprintf("`%s` must be a finite numeric scalar.", nm), call. = FALSE)
+    }
+  }
+  if (length(sigma) != 1L || !is.numeric(sigma) || is.na(sigma) ||
+      !is.finite(sigma) || sigma <= 0) {
+    stop("`sigma` must be a positive finite scalar.", call. = FALSE)
+  }
+  if (length(tau) != 1L || !is.numeric(tau) || is.na(tau) ||
+      !is.finite(tau) || tau < 0) {
+    stop("`tau` must be a non-negative finite scalar.", call. = FALSE)
+  }
+  structure(list(
+    id = id, n = as.integer(n), n_groups = as.integer(n_groups),
+    group_sizes = group_sizes, alpha = as.numeric(alpha), beta = as.numeric(beta),
+    sigma = as.numeric(sigma), tau = as.numeric(tau), x_level = x_level,
+    family = "random_intercept"
+  ), class = "gt_scenario")
+}
+
 #' Define a fitting adapter
 #'
 #' @param id A non-empty scalar character identifier.
 #' @param fit A function accepting one fresh data frame with exactly `x` and
 #'   `y`, or `NULL` for the default fitter of the declared family.
 #' @param metadata A list of descriptive metadata.
-#' @param family Either `"gaussian"` or `"logistic"`.
+#' @param family A supported scenario family.
 #' @details The default Gaussian fitter uses `stats::lm` with an intercept and
 #'   slope, estimates residual variance as SSE / (n - 2), and returns 90% and
-#'   95% Student t intervals. Logistic fitters must be supplied explicitly or
-#'   created with [gt_glm_adapter()]. Truth is withheld from every fitter.
+#'   95% Student t intervals. Logistic and random-intercept fitters must be
+#'   supplied explicitly or created with [gt_glm_adapter()] and
+#'   [gt_lmm_adapter()]. Truth is withheld from every fitter.
 #' @return A `gt_adapter` object with its declared family.
 #' @examples
 #' gt_adapter()
@@ -78,6 +158,26 @@ gt_glm_adapter <- function(id = "glm", metadata = list()) {
             class = "gt_adapter")
 }
 
+#' Create the native Gaussian random-intercept adapter
+#'
+#' @param id Adapter identifier.
+#' @param metadata Descriptive metadata.
+#' @return A `random_intercept` `gt_adapter` using `lme4::lmer` with ML.
+#' @examples
+#' \dontrun{gt_lmm_adapter()}
+#' @export
+gt_lmm_adapter <- function(id = "lmer", metadata = list()) {
+  .gt_scalar_character(id, "id", nonempty = TRUE)
+  if (!is.list(metadata)) stop("`metadata` must be a list.", call. = FALSE)
+  if (!requireNamespace("lme4", quietly = TRUE)) {
+    stop("Package `lme4` is required; install it to use `gt_lmm_adapter()`.",
+         call. = FALSE)
+  }
+  fit <- function(data) .gt_lmm_fit(data)
+  structure(list(id = id, fit = fit, metadata = metadata,
+                 family = "random_intercept"), class = "gt_adapter")
+}
+
 .gt_make_adapter <- function(id, fit, metadata, family, default_fit) {
   .gt_scalar_character(id, "id", nonempty = TRUE)
   .gt_family(family)
@@ -87,6 +187,10 @@ gt_glm_adapter <- function(id = "glm", metadata = list()) {
     if (identical(family, "logistic")) {
       stop("Supply a logistic fitter or use `gt_glm_adapter()`.", call. = FALSE)
     }
+    if (identical(family, "random_intercept")) {
+      stop("Supply a random-intercept fitter or use `gt_lmm_adapter()`.",
+           call. = FALSE)
+    }
     fit <- default_fit
   }
   structure(list(id = id, fit = fit, metadata = metadata, family = family),
@@ -95,22 +199,24 @@ gt_glm_adapter <- function(id = "glm", metadata = list()) {
 
 .gt_family <- function(x) {
   if (length(x) != 1L || !is.character(x) || is.na(x) ||
-      !x %in% c("gaussian", "logistic")) {
-    stop("`family` must be `gaussian` or `logistic`.", call. = FALSE)
+      !x %in% c("gaussian", "logistic", "random_intercept")) {
+    stop("`family` must be `gaussian`, `logistic`, or `random_intercept`.",
+         call. = FALSE)
   }
   x
 }
 
 #' Construct a fitting result
 #'
-#' @param estimates Named numeric estimates for `alpha` and `beta`.
+#' @param estimates A non-empty named numeric vector of finite estimates.
 #' @param intervals Optional data frame with target, level, lower, and upper
 #'   columns.
 #' @param converged A non-missing scalar logical value.
 #' @param message A scalar character message.
 #' @param diagnostics A list of diagnostic values.
-#' @details Estimates must name `alpha` and `beta` exactly once. Missing,
-#' duplicate, extra or nonfinite point targets reject the result. Intervals
+#' @details Estimate names must be unique, non-empty, and finite. The runner
+#' checks that names match the complete target set for the scenario family.
+#' Missing, duplicate, or nonfinite estimates reject the result. Intervals
 #' use columns `target`, `level`, `lower`, `upper`, at levels 0.90 and 0.95.
 #' Missing, duplicate, nonfinite or reversed intervals retain accepted points
 #' and exclude the affected interval. Malformed or unsupported interval labels
@@ -155,7 +261,7 @@ gt_result <- function(
   )
 }
 
-#' Run a reproducible Gaussian or logistic simulation study
+#' Run a reproducible simulation study
 #'
 #' @param scenarios A `gt_scenario` or a non-empty list of them.
 #' @param adapters A `gt_adapter` or a non-empty list of them.
@@ -164,6 +270,9 @@ gt_result <- function(
 #' retain every digit, including labels above 2^53; numeric inputs must be
 #'   exact
 #'   integers no larger than 2^53.
+#' @param targets Optional target subset. When `NULL`, each scenario uses the
+#'   complete default target set for its family. An explicit subset must be
+#'   supported by every scenario in the study.
 #' @details R streams use groundtruth-r-rng-v1: SHA256 of length-prefixed UTF8
 #' master/scenario/rep/stream keys, allocated in canonical byte order to
 #' distinct
@@ -173,6 +282,9 @@ gt_result <- function(
 #' error. Ambient Box-Muller is refused before mutation because cached normal
 #' state cannot be safely restored. Reordering the same input set is invariant;
 #' adding keys may change rare collision allocations. R and Julia draws differ.
+#' Random-intercept studies record `x_level` and generator revision
+#' `random-intercept-v2` in scenario metadata and provenance. Legacy R scenarios
+#' without `x_level` normalize to observation-level predictors on replay.
 #' @return A `gt_study` list containing `scenarios`, `adapters`, `reps`,
 #' `master_seed`, `rng`, `seed_map`, `data`, `ledger`, `targets` and
 #' `provenance`.
@@ -186,18 +298,22 @@ gt_runstudy <- function(
   scenarios,
   adapters = list(gt_adapter()),
   reps = 10L,
-  seed = "20261004"
+  seed = "20261004",
+  targets = NULL
 ) {
   scenarios <- .gt_scenarios(scenarios)
   adapters <- .gt_adapters(adapters)
   reps <- .gt_reps(reps)
   master <- .gt_master_seed(seed)
+  target_map <- .gt_resolve_targets(scenarios, targets)
   .gt_with_rng_state(.gt_run(
     scenarios,
     adapters,
     reps,
     master,
-    .gt_seed_map(scenarios, adapters, reps, master)
+    .gt_seed_map(scenarios, adapters, reps, master),
+    target_map,
+    targets
   ))
 }
 
@@ -209,6 +325,9 @@ gt_runstudy <- function(
 #' Replay validates and reuses the full map. Deterministic/stateless adapters
 #' replay in the same environment; external inputs and closure state remain
 #' the caller's responsibility.
+#' Random-intercept scenarios record `x_level` and generator revision
+#' `random-intercept-v2`. Legacy R scenarios without `x_level` normalize to
+#' observation-level predictors during replay.
 #' @return A newly computed `gt_study` with the recorded random-stream map.
 #' @examples
 #' study <- gt_runstudy(gt_scenario("example"), reps = 1L)
@@ -216,6 +335,16 @@ gt_runstudy <- function(
 #' @export
 gt_replay <- function(study, adapters = study$adapters) {
   .gt_validate_study(study)
+  # Studies written before target selection was recorded use the family
+  # defaults validated above. Reconstruct that map before replay so ordinary
+  # legacy target rows are not dropped by the runner.
+  target_map <- study$target_map
+  if (is.null(target_map)) {
+    target_map <- .gt_resolve_targets(
+      .gt_scenarios(study$scenarios), study$target_selection
+    )
+  }
+  scenarios <- .gt_scenarios(study$scenarios)
   adapters <- .gt_adapters(adapters)
   if (
     !identical(
@@ -226,18 +355,20 @@ gt_replay <- function(study, adapters = study$adapters) {
     stop("Replay adapters must have the recorded adapter ids.", call. = FALSE)
   }
   expected <- .gt_seed_map(
-    study$scenarios,
+    scenarios,
     adapters,
     study$reps,
     study$master_seed
   )
   .gt_validate_seed_map(study$seed_map, expected)
   .gt_with_rng_state(.gt_run(
-    study$scenarios,
+    scenarios,
     adapters,
     study$reps,
     study$master_seed,
-    study$seed_map
+    study$seed_map,
+    target_map,
+    study$target_selection
   ))
 }
 
@@ -252,7 +383,9 @@ gt_replay <- function(study, adapters = study$adapters) {
 #' Monte Carlo interval. All-failed bias/RMSE/conditional coverage are NA and
 #' covered_per_attempt is zero. Singleton MCSE is NA; zero RMSE with k > 1
 #' has MCSE zero. These are Monte Carlo uncertainty summaries, not a claim
-#' of estimator calibration.
+#' of estimator calibration. In random-intercept studies, variance targets
+#' are point-only and have no expected intervals; their coverage fields are
+#' `NA` and they do not enter interval denominators.
 #' @return A data frame with keys, attempt/interval counts, bias/RMSE and their
 #' MCSE, conditional coverage and its MCSE/Wilson bounds, and
 #' covered_per_attempt.
@@ -263,17 +396,18 @@ gt_replay <- function(study, adapters = study$adapters) {
 gt_summarize <- function(study) {
   .gt_validate_study(study)
   target <- study$targets
+  extended <- "interval_expected" %in% names(target)
   keys <- unique(target[c("scenario", "adapter", "target", "level")])
   keys <- keys[do.call(order, keys), , drop = FALSE]
   rows <- lapply(seq_len(nrow(keys)), function(i) {
-    z <- target[
-      target$scenario == keys$scenario[i] &
-        target$adapter == keys$adapter[i] &
-        target$target == keys$target[i] &
-        target$level == keys$level[i],
-      ,
-      drop = FALSE
-    ]
+    level_match <- if (is.na(keys$level[i])) {
+      is.na(target$level)
+    } else {
+      target$level == keys$level[i]
+    }
+    z <- target[target$scenario == keys$scenario[i] &
+                  target$adapter == keys$adapter[i] &
+                  target$target == keys$target[i] & level_match, , drop = FALSE]
     ok <- is.finite(z$estimate)
     errors <- z$estimate[ok] - z$truth[ok]
     k <- length(errors)
@@ -291,6 +425,7 @@ gt_summarize <- function(study) {
     usable <- z$usable_interval %in% TRUE
     m <- sum(usable)
     hits <- sum(z$covered[usable] %in% TRUE)
+    intervals_expected <- if (extended) sum(z$interval_expected) else attempted
     coverage <- if (m) hits / m else NA_real_
     coverage_mcse <- if (m > 1L) {
       sqrt(coverage * (1 - coverage) / m)
@@ -298,7 +433,7 @@ gt_summarize <- function(study) {
       NA_real_
     }
     wilson <- .gt_wilson(hits, m)
-    data.frame(
+    row <- data.frame(
       scenario = keys$scenario[i],
       adapter = keys$adapter[i],
       target = keys$target[i],
@@ -307,7 +442,7 @@ gt_summarize <- function(study) {
       successful = k,
       failed = failed,
       usable_intervals = m,
-      unusable_intervals = attempted - m,
+      unusable_intervals = intervals_expected - m,
       bias = bias,
       bias_mcse = bias_mcse,
       rmse = rmse,
@@ -316,9 +451,11 @@ gt_summarize <- function(study) {
       coverage_mcse = coverage_mcse,
       coverage_mc_lower = wilson[1],
       coverage_mc_upper = wilson[2],
-      covered_per_attempt = hits / attempted,
+      covered_per_attempt = if (intervals_expected) hits / intervals_expected else NA_real_,
       stringsAsFactors = FALSE
     )
+    if (extended) row$intervals_expected <- intervals_expected
+    row
   })
   do.call(rbind, rows)
 }
@@ -330,7 +467,11 @@ gt_summarize <- function(study) {
 #' @details Writes data.csv, attempts.csv, targets.csv, summary.csv,
 #' seed-map.csv, scenarios.csv and manifest.R with versioned schemas, full
 #' RNG settings/map, character master seed, SHA256 file hashes, adapter metadata
-#' and provenance. Source identity is the SHA256 of the sole implementation
+#' and provenance. Ordinary-only studies use export schema v2; random-intercept
+#' studies use v4, which records `x_level` in scenarios.csv and generator
+#' revision `random-intercept-v2`. Earlier v3 artifacts remain valid as
+#' artifacts. Source
+#' identity is the SHA256 of the sole implementation
 #' file, R/groundtruth.R, recorded when the package is prepared. It identifies
 #' the study producer separately from the exporter.
 #' The CSV writer retains at least 17 significant digits;
@@ -382,8 +523,13 @@ gt_export <- function(study, path) {
   )
   names(hashes) <- csv_names
   manifest <- list(
-    schema_version = "groundtruth-r-export-v2",
+    schema_version = if (any(vapply(
+      study$scenarios, function(s) s$family == "random_intercept", logical(1)
+    ))) "groundtruth-r-export-v4" else "groundtruth-r-export-v2",
     rng_algorithm = "groundtruth-r-rng-v1",
+    generator_revision = if (any(vapply(
+      study$scenarios, function(s) s$family == "random_intercept", logical(1)
+    ))) "random-intercept-v2" else NULL,
     master_seed = study$master_seed,
     csv = lapply(files, .gt_schema),
     sha256 = as.list(hashes),
@@ -402,6 +548,21 @@ gt_export <- function(study, path) {
     }),
     provenance = study$provenance
   )
+  if (identical(manifest$schema_version, "groundtruth-r-export-v4")) {
+    manifest$target_map <- study$target_map
+    manifest$target_selection <- study$target_selection
+    manifest$target_metadata <- data.frame(
+      name = c("alpha", "beta", "sigma2", "tau2"),
+      units = c("response", "response per x unit", "response squared", "response squared"),
+      interval_expected = c(TRUE, TRUE, FALSE, FALSE),
+      stringsAsFactors = FALSE
+    )
+    manifest$grouping = list(
+      column = "group",
+      assignment = "canonical integer labels within each scenario and replicate",
+      missing_for_other_families = TRUE
+    )
+  }
   writeLines(
     utils::capture.output(dput(manifest)),
     file.path(path, "manifest.R"),
@@ -429,16 +590,16 @@ gt_export <- function(study, path) {
 .gt_validate_estimates <- function(x) {
   if (
     !is.numeric(x) ||
-      length(x) != 2L ||
+      !length(x) ||
       is.null(names(x)) ||
       anyDuplicated(names(x)) ||
-      !setequal(names(x), c("alpha", "beta")) ||
+      anyNA(names(x)) || any(!nzchar(names(x))) ||
       any(!is.finite(x))
   ) {
     stop(
       paste(
-        "`estimates` must be finite named numeric",
-        "alpha and beta values exactly once."
+        "`estimates` must be a non-empty finite named numeric vector",
+        "with unique, non-empty names."
       ),
       call. = FALSE
     )
@@ -465,10 +626,57 @@ gt_export <- function(study, path) {
   }
   x <- lapply(x, function(s) {
     family <- if (is.null(s$family)) "gaussian" else s$family
+    if (identical(family, "random_intercept")) {
+      n_groups <- s$n_groups
+      group_sizes <- s$group_sizes
+      if (is.null(n_groups) || is.null(group_sizes)) {
+        stop("Malformed random-intercept scenario.", call. = FALSE)
+      }
+      return(gt_ri_scenario(
+        s$id, n_groups = n_groups, group_sizes = group_sizes,
+        alpha = s$alpha, beta = s$beta, sigma = s$sigma, tau = s$tau,
+        x_level = if (is.null(s$x_level)) "observation" else s$x_level
+      ))
+    }
     sigma <- if (identical(family, "gaussian") && is.null(s$sigma)) 1.2 else s$sigma
     gt_scenario(s$id, s$n, s$alpha, s$beta, sigma, family)
   })
   x[order(.gt_byte_order(ids))]
+}
+
+.gt_integer_scalar <- function(x, name, minimum = 0L) {
+  if (length(x) != 1L || !is.numeric(x) || is.na(x) ||
+      !is.finite(x) || x != floor(x) || x < minimum ||
+      x > .Machine$integer.max) {
+    stop(sprintf("`%s` must be an integer at least %d.", name, minimum),
+         call. = FALSE)
+  }
+  as.integer(x)
+}
+
+.gt_family_targets <- function(family) {
+  if (identical(family, "random_intercept")) {
+    c("alpha", "beta", "sigma2", "tau2")
+  } else {
+    c("alpha", "beta")
+  }
+}
+
+.gt_resolve_targets <- function(scenarios, targets = NULL) {
+  supported <- lapply(scenarios, function(s) .gt_family_targets(s$family))
+  names(supported) <- vapply(scenarios, `[[`, "", "id")
+  if (is.null(targets)) return(supported)
+  if (!is.character(targets) || !length(targets) || anyNA(targets) ||
+      any(!nzchar(targets)) || anyDuplicated(targets)) {
+    stop("`targets` must be a non-empty vector of unique target names.",
+         call. = FALSE)
+  }
+  unsupported <- vapply(supported, function(x) any(!targets %in% x), logical(1))
+  if (any(unsupported)) {
+    stop("Explicit `targets` must be supported by every scenario.",
+         call. = FALSE)
+  }
+  stats::setNames(rep(list(targets), length(supported)), names(supported))
 }
 .gt_adapters <- function(x) {
   if (inherits(x, "gt_adapter")) {
@@ -686,15 +894,29 @@ gt_export <- function(study, path) {
     normal.kind = "Inversion",
     sample.kind = "Rejection"
   )
-  x <- stats::rnorm(s$n)
+  x <- if (identical(s$family, "random_intercept") &&
+           identical(s$x_level, "group")) {
+    rep(stats::rnorm(s$n_groups), times = s$group_sizes)
+  } else {
+    stats::rnorm(s$n)
+  }
   if (identical(s$family, "gaussian")) {
     e <- stats::rnorm(s$n)
     y <- s$alpha + s$beta * x + s$sigma * e
-  } else {
-    y <- stats::rbinom(s$n, size = 1L, prob = stats::plogis(s$alpha + s$beta * x))
+    if (any(!is.finite(x)) || any(!is.finite(y))) stop("Generated nonfinite data.", call. = FALSE)
+    return(data.frame(x = x, y = y, stringsAsFactors = FALSE))
   }
+  if (identical(s$family, "logistic")) {
+    y <- stats::rbinom(s$n, size = 1L, prob = stats::plogis(s$alpha + s$beta * x))
+    if (any(!is.finite(x)) || any(!is.finite(y))) stop("Generated nonfinite data.", call. = FALSE)
+    return(data.frame(x = x, y = y, stringsAsFactors = FALSE))
+  }
+  group <- rep(seq_len(s$n_groups), times = s$group_sizes)
+  u <- stats::rnorm(s$n_groups, sd = s$tau)
+  e <- stats::rnorm(s$n, sd = s$sigma)
+  y <- s$alpha + s$beta * x + u[group] + e
   if (any(!is.finite(x)) || any(!is.finite(y))) stop("Generated nonfinite data.", call. = FALSE)
-  data.frame(x = x, y = y, stringsAsFactors = FALSE)
+  data.frame(x = x, y = y, group = group, stringsAsFactors = FALSE)
 }
 .gt_lm_fit <- function(data) {
   if (
@@ -881,6 +1103,295 @@ gt_export <- function(study, path) {
   ))
 }
 
+# Internal, diagnostic-only optimizer condition. Never retain the fitted model.
+.gt_optimizer_error <- function(message, optinfo, warnings = character()) {
+  truncated <- FALSE
+  text <- function(x, limit = 512L) {
+    if (!is.character(x) || !length(x)) return(NA_character_)
+    if (length(x) > 1L) truncated <<- TRUE
+    x <- enc2utf8(x[[1L]])
+    if (is.na(x)) return(NA_character_)
+    if (is.na(iconv(x, from = "UTF-8", to = "UTF-8"))) {
+      truncated <<- TRUE
+      return("[invalid UTF-8]")
+    }
+    if (nchar(x, type = "bytes") <= limit) return(x)
+    truncated <<- TRUE
+    # Character slicing avoids cutting a multibyte UTF-8 character in half.
+    lo <- 0L
+    hi <- nchar(x, type = "chars")
+    while (lo < hi) {
+      mid <- ceiling((lo + hi) / 2)
+      if (nchar(substr(x, 1L, mid), type = "bytes") <= limit) lo <- mid else hi <- mid - 1L
+    }
+    substr(x, 1L, lo)
+  }
+  texts <- function(x) {
+    if (!is.character(x)) return(character())
+    if (length(x) > 16L) truncated <<- TRUE
+    vapply(utils::head(x, 16L), text, character(1), USE.NAMES = FALSE)
+  }
+  labels <- function(keys, limit = 512L) {
+    keys <- vapply(keys, text, character(1), limit = limit, USE.NAMES = FALSE)
+    for (i in seq_along(keys)) {
+      if (i > 1L && keys[[i]] %in% keys[seq_len(i - 1L)]) {
+        truncated <<- TRUE
+        original <- keys[[i]]
+        attempt <- 0L
+        repeat {
+          attempt <- attempt + 1L
+          suffix <- paste0(".", i, ".", attempt)
+          candidate <- paste0(text(original, limit - nchar(suffix, type = "bytes")), suffix)
+          if (!candidate %in% keys[seq_len(i - 1L)]) break
+        }
+        keys[[i]] <- candidate
+      }
+    }
+    keys
+  }
+  empty <- function() list(
+    optimizer = NA_character_, code = NA_integer_, optimizer_message = NA_character_,
+    warnings = character(), convergence_messages = character(), evaluations = list(),
+    diagnostics = list(), truncated = FALSE, capture_error = ""
+  )
+  metadata <- tryCatch({
+    m <- empty()
+    m$optimizer <- text(optinfo$optimizer)
+    code <- optinfo$conv$opt
+    if (is.numeric(code) && length(code) && is.finite(code[[1L]]) &&
+        code[[1L]] == trunc(code[[1L]]) && abs(code[[1L]]) <= .Machine$integer.max) {
+      m$code <- as.integer(code[[1L]])
+      if (length(code) > 1L) truncated <- TRUE
+    }
+    m$optimizer_message <- text(optinfo$message)
+    m$warnings <- texts(c(if (is.character(warnings)) warnings else character(),
+                          if (is.character(optinfo$warnings)) optinfo$warnings else character()))
+    m$convergence_messages <- texts(optinfo$conv$lme4$messages)
+    evaluations <- optinfo$feval
+    if (is.numeric(evaluations)) evaluations <- as.list(evaluations)
+    if (is.list(evaluations)) {
+      valid <- vapply(evaluations, function(x) is.numeric(x) && length(x) == 1L, logical(1))
+      evaluations <- evaluations[valid]
+      if (length(evaluations)) {
+        keys <- names(evaluations)
+        if (is.null(keys)) keys <- if (length(evaluations) == 1L) "feval" else paste0("feval_", seq_along(evaluations))
+        invalid <- is.na(keys) | !nzchar(keys)
+        keys[invalid] <- paste0("feval_", which(invalid))
+        names(evaluations) <- keys
+        evaluations <- evaluations[order(keys, method = "radix")]
+        if (length(evaluations) > 32L) truncated <- TRUE
+        evaluations <- utils::head(evaluations, 32L)
+        evaluations <- lapply(evaluations, function(value) {
+          if (!is.null(attributes(value))) truncated <<- TRUE
+          attributes(value) <- NULL
+          value
+        })
+        names(evaluations) <- labels(names(evaluations))
+        m$evaluations <- evaluations
+      }
+    }
+    # Recognized derivatives become scalar summaries, never arbitrary optinfo.
+    gradient <- optinfo$derivs$gradient
+    hessian <- optinfo$derivs$Hessian
+    d <- list()
+    if (is.numeric(gradient) && length(gradient)) {
+      d$gradient_all_finite <- all(is.finite(gradient))
+      d$gradient_length <- length(gradient)
+      d$gradient_max_abs <- max(abs(gradient))
+    }
+    if (is.matrix(hessian) && is.numeric(hessian) && length(hessian)) {
+      d$hessian_all_finite <- all(is.finite(hessian))
+      d$hessian_nrow <- nrow(hessian)
+      d$hessian_ncol <- ncol(hessian)
+      diagonal <- diag(hessian)
+      if (length(diagonal)) {
+        d$hessian_diagonal_min <- min(diagonal)
+        d$hessian_diagonal_max <- max(diagonal)
+      }
+    }
+    m$diagnostics <- d[order(names(d), method = "radix")]
+    m
+  }, error = function(e) {
+    m <- empty()
+    m$capture_error <- text(conditionMessage(e))
+    m
+  })
+  serialized_size <- function(value) max(
+    length(serialize(value, NULL, version = 2)),
+    length(serialize(value, NULL, version = 3))
+  )
+  # Text is reduced first, then optional entries in reverse lexical order.
+  # The cap covers the complete serialized metadata, including field names.
+  for (limit in c(256L, 128L, 64L, 32L)) {
+    metadata$truncated <- truncated
+    if (serialized_size(metadata) <= 16384L) break
+    for (name in c("optimizer", "optimizer_message", "capture_error")) {
+      metadata[[name]] <- text(metadata[[name]], limit)
+    }
+    for (name in c("warnings", "convergence_messages")) {
+      metadata[[name]] <- vapply(metadata[[name]], text, character(1), limit = limit, USE.NAMES = FALSE)
+    }
+    if (length(metadata$evaluations)) {
+      names(metadata$evaluations) <- labels(names(metadata$evaluations), limit)
+    }
+  }
+  metadata$truncated <- truncated
+  for (field in c("diagnostics", "evaluations")) {
+    while (serialized_size(metadata) > 16384L && length(metadata[[field]])) {
+      keys <- names(metadata[[field]])
+      remove <- order(keys, decreasing = TRUE, method = "radix")[[1L]]
+      metadata[[field]] <- metadata[[field]][-remove]
+      metadata$truncated <- TRUE
+    }
+  }
+  structure(list(message = message, call = NULL, metadata = metadata),
+            class = c("gt_optimizer_error", "error", "condition"))
+}
+
+.gt_lmm_fit <- function(data) {
+  if (!is.data.frame(data) || !identical(names(data), c("x", "y", "group")) ||
+      nrow(data) <= 2L || !is.numeric(data$x) || !is.numeric(data$y) ||
+      any(!is.finite(data$x)) || any(!is.finite(data$y)) ||
+      anyNA(data$group)) {
+    stop("Random-intercept fitter requires finite numeric x,y and complete group labels.",
+         call. = FALSE)
+  }
+  group <- droplevels(factor(data$group))
+  group_sizes <- tabulate(as.integer(group), nbins = nlevels(group))
+  if (nlevels(group) < 2L || !any(group_sizes > 1L)) {
+    stop("At least two groups and one replicated group are required.", call. = FALSE)
+  }
+  x <- data$x
+  y <- data$y
+  X <- cbind(`(Intercept)` = 1, x = x)
+  if (qr(X)$rank != 2L) {
+    stop("Random-intercept model requires a rank-two fixed-effect design.",
+         call. = FALSE)
+  }
+  # Detect exact group-plus-slope prediction from within-group differences.
+  # This avoids making the tolerance depend on a potentially huge intercept.
+  if (.gt_lmm_residual_degenerate(data)) {
+    stop("Residual-degenerate likelihood: zero residual variance is possible.",
+         call. = FALSE)
+  }
+  fit_warnings <- character()
+  control <- lme4::lmerControl(
+    optimizer = "bobyqa",
+    optCtrl = list(maxfun = 100000L, rhoend = 1e-10),
+    check.rankX = "stop.deficient"
+  )
+  fit <- withCallingHandlers(
+    lme4::lmer(
+      y ~ 1 + x + (1 | group),
+      data = data.frame(x = x, y = y, group = group),
+      REML = FALSE,
+      na.action = stats::na.fail,
+      control = control
+    ),
+    warning = function(w) {
+      fit_warnings <<- c(fit_warnings, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  opt_code <- fit@optinfo$conv$opt
+  if (length(opt_code) && any(opt_code != 0L)) {
+    stop(.gt_optimizer_error(
+      sprintf("lme4 optimizer failed with code %s.", paste(opt_code, collapse = ",")),
+      fit@optinfo, fit_warnings
+    ))
+  }
+  conv_messages <- fit@optinfo$conv$lme4$messages
+  singular <- lme4::isSingular(fit)
+  if (length(conv_messages)) {
+    non_singular_messages <- conv_messages[
+      !grepl("boundary.*singular", conv_messages, ignore.case = TRUE)
+    ]
+    if (length(non_singular_messages)) {
+      stop(paste("lme4 convergence failure:",
+                 paste(non_singular_messages, collapse = "; ")), call. = FALSE)
+    }
+  }
+  coefficient <- lme4::fixef(fit)
+  if (!identical(names(coefficient), c("(Intercept)", "x")) ||
+      any(!is.finite(coefficient))) {
+    stop("lme4 did not return finite intercept and slope estimates.", call. = FALSE)
+  }
+  sigma2 <- stats::sigma(fit)^2
+  tau2 <- as.numeric(lme4::VarCorr(fit)$group[1L])
+  if (!is.finite(sigma2) || sigma2 <= 0 || !is.finite(tau2) || tau2 < 0) {
+    stop("lme4 returned invalid variance estimates.", call. = FALSE)
+  }
+  estimates <- c(alpha = unname(coefficient[["(Intercept)"]]),
+                 beta = unname(coefficient[["x"]]),
+                 sigma2 = sigma2, tau2 = tau2)
+  # Independently reconstruct the fixed-effect covariance at the ML variance
+  # estimates, using V = sigma2 I + tau2 Z Z'.
+  V <- diag(sigma2, nrow(data))
+  for (level in levels(group)) {
+    idx <- which(group == level)
+    V[idx, idx] <- V[idx, idx, drop = FALSE] + tau2
+  }
+  covariance <- tryCatch(
+    solve(crossprod(X, solve(V, X))),
+    error = function(e) NULL
+  )
+  intervals <- NULL
+  interval_message <- "Independent fixed-effect covariance unavailable; intervals omitted."
+  if (!is.null(covariance) && all(is.finite(covariance)) &&
+      all(diag(covariance) >= 0)) {
+    intervals <- do.call(rbind, lapply(c(0.90, 0.95), function(level) {
+      q <- stats::qnorm((1 + level) / 2)
+      se <- sqrt(diag(covariance))
+      data.frame(
+        target = c("alpha", "beta"), level = level,
+        lower = estimates[c("alpha", "beta")] - q * se,
+        upper = estimates[c("alpha", "beta")] + q * se,
+        stringsAsFactors = FALSE
+      )
+    }))
+    interval_message <- ""
+  }
+  objective <- -as.numeric(stats::logLik(fit))
+  if (!is.finite(objective)) stop("lme4 returned a nonfinite ML objective.", call. = FALSE)
+  exact_zero <- tau2 <= 1e-10
+  near_boundary <- tau2 / (sigma2 + tau2) <= 1e-8
+  gt_result(estimates, intervals, message = interval_message, diagnostics = list(
+    engine = "lme4::lmer", engine_version = as.character(utils::packageVersion("lme4")),
+    REML = FALSE, optimizer = "bobyqa", optimizer_controls = list(maxfun = 100000L, rhoend = 1e-10),
+    optimizer_code = opt_code, optimizer_evaluations = fit@optinfo$feval,
+    optimizer_messages = conv_messages, warnings = fit_warnings,
+    converged = TRUE, singular = singular, exact_zero = exact_zero,
+    near_boundary = near_boundary, objective_nll = objective,
+    observed_groups = nlevels(group), covariance = covariance,
+    inference = "independent ML plug-in covariance; normal Wald for alpha and beta"
+  ))
+}
+
+#' Detect a zero-residual random-intercept likelihood robustly to offsets
+#'
+#' The backward-error tolerance is 64 machine epsilons times the scale of
+#' within-group response differences and their fitted slope contribution. The
+#' absolute response level is deliberately excluded so a large intercept
+#' cannot hide visible within-group variation.
+#' @noRd
+.gt_lmm_residual_degenerate <- function(data) {
+  by_group <- split(seq_len(nrow(data)), data$group)
+  replicated <- lapply(by_group, function(index) {
+    if (length(index) < 2L) return(NULL)
+    cbind(dx = data$x[index][-1L] - data$x[index][1L],
+          dy = data$y[index][-1L] - data$y[index][1L])
+  })
+  differences <- do.call(rbind, Filter(Negate(is.null), replicated))
+  if (is.null(differences) || !nrow(differences)) return(FALSE)
+  dx <- differences[, "dx"]
+  dy <- differences[, "dy"]
+  denominator <- sum(dx * dx)
+  slope <- if (denominator > 0) sum(dx * dy) / denominator else 0
+  residual <- dy - slope * dx
+  scale <- max(abs(dy), abs(slope * dx))
+  all(abs(residual) <= 64 * .Machine$double.eps * scale)
+}
+
 .gt_result_checked <- function(x) {
   if (!inherits(x, "gt_result")) {
     return(list(ok = FALSE, message = "Fitter did not return gt_result."))
@@ -902,6 +1413,7 @@ gt_export <- function(study, path) {
   list(
     ok = TRUE,
     estimates = x$estimates,
+    raw_intervals = x$intervals,
     intervals = intervals,
     converged = x$converged,
     message = message
@@ -967,31 +1479,23 @@ gt_export <- function(study, path) {
   }
   hit
 }
-.gt_empty_target <- function(scenario, rep, adapter, truth, message) {
-  do.call(
-    rbind,
-    lapply(c("alpha", "beta"), function(target) {
-      do.call(
-        rbind,
-        lapply(c(0.90, 0.95), function(level) {
-          data.frame(
-            scenario = scenario,
-            rep = rep,
-            adapter = adapter,
-            target = target,
-            level = level,
-            truth = truth[[target]],
-            estimate = NA_real_,
-            lower = NA_real_,
-            upper = NA_real_,
-            usable_interval = FALSE,
-            covered = NA,
-            stringsAsFactors = FALSE
-          )
-        })
+.gt_empty_target <- function(scenario, rep, adapter, truth, targets,
+                             extended = FALSE) {
+  rows <- lapply(targets, function(target) {
+    levels <- if (target %in% c("alpha", "beta")) c(0.90, 0.95) else NA_real_
+    do.call(rbind, lapply(levels, function(level) {
+      row <- data.frame(
+        scenario = scenario, rep = rep, adapter = adapter,
+        target = target, level = level, truth = truth[[target]],
+        estimate = NA_real_, lower = NA_real_, upper = NA_real_,
+        usable_interval = FALSE, covered = NA,
+        stringsAsFactors = FALSE
       )
-    })
-  )
+      if (extended) row$interval_expected <- target %in% c("alpha", "beta")
+      row
+    }))
+  })
+  do.call(rbind, rows)
 }
 .gt_target_rows <- function(
   scenario,
@@ -1000,56 +1504,66 @@ gt_export <- function(study, path) {
   truth,
   result,
   accepted,
-  message
+  message,
+  targets,
+  extended = FALSE
 ) {
   if (!accepted) {
-    return(.gt_empty_target(scenario, rep, adapter, truth, message))
+    return(.gt_empty_target(scenario, rep, adapter, truth, targets, extended))
   }
-  do.call(
-    rbind,
-    lapply(c("alpha", "beta"), function(target) {
-      do.call(
-        rbind,
-        lapply(c(0.90, 0.95), function(level) {
-          iv <- result$intervals[[paste(target, level)]]
-          estimate <- unname(result$estimates[target])
-          usable <- isTRUE(iv$ok)
-          data.frame(
-            scenario = scenario,
-            rep = rep,
-            adapter = adapter,
-            target = target,
-            level = level,
-            truth = truth[[target]],
-            estimate = estimate,
-            lower = if (usable) iv$lower else NA_real_,
-            upper = if (usable) iv$upper else NA_real_,
-            usable_interval = usable,
-            covered = if (usable) {
-              (iv$lower <= truth[[target]] && truth[[target]] <= iv$upper)
-            } else {
-              NA
-            },
-            stringsAsFactors = FALSE
-          )
-        })
+  rows <- lapply(targets, function(target) {
+    estimate <- unname(result$estimates[[target]])
+    if (target %in% c("alpha", "beta")) {
+      do.call(rbind, lapply(c(0.90, 0.95), function(level) {
+        iv <- result$intervals[[paste(target, level)]]
+        usable <- isTRUE(iv$ok)
+        row <- data.frame(
+          scenario = scenario, rep = rep, adapter = adapter,
+          target = target, level = level, truth = truth[[target]],
+          estimate = estimate,
+          lower = if (usable) iv$lower else NA_real_,
+          upper = if (usable) iv$upper else NA_real_,
+          usable_interval = usable,
+          covered = if (usable) {
+            iv$lower <= truth[[target]] && truth[[target]] <= iv$upper
+          } else NA,
+          stringsAsFactors = FALSE
+        )
+        if (extended) row$interval_expected <- TRUE
+        row
+      }))
+    } else {
+      row <- data.frame(
+        scenario = scenario, rep = rep, adapter = adapter,
+        target = target, level = NA_real_, truth = truth[[target]],
+        estimate = estimate, lower = NA_real_, upper = NA_real_,
+        usable_interval = FALSE, covered = NA,
+        stringsAsFactors = FALSE
       )
-    })
-  )
+      if (extended) row$interval_expected <- FALSE
+      row
+    }
+  })
+  do.call(rbind, rows)
 }
-.gt_run <- function(scenarios, adapters, reps, master, seed_map) {
+.gt_run <- function(scenarios, adapters, reps, master, seed_map,
+                    target_map, target_selection = NULL) {
   data_rows <- list()
   ledger_rows <- list()
   target_rows <- list()
   di <- li <- ti <- 0L
+  extended <- any(vapply(scenarios, function(s) s$family == "random_intercept", logical(1)))
   for (s in scenarios) {
     for (r in seq_len(reps)) {
       dseed <- .gt_seed_for(seed_map, s$id, r, "data")
       generated <- tryCatch(.gt_generate(s, dseed), error = function(e) e)
-      truth <- list(alpha = s$alpha, beta = s$beta)
+      truth <- c(alpha = s$alpha, beta = s$beta)
+      if (identical(s$family, "random_intercept")) {
+        truth <- c(truth, sigma2 = s$sigma^2, tau2 = s$tau^2)
+      }
       if (!inherits(generated, "error")) {
         di <- di + 1L
-        data_rows[[di]] <- data.frame(
+        data_row <- data.frame(
           scenario = s$id,
           rep = r,
           row = seq_len(nrow(generated)),
@@ -1057,6 +1571,10 @@ gt_export <- function(study, path) {
           y = generated$y,
           stringsAsFactors = FALSE
         )
+        if (extended) {
+          data_row$group <- if ("group" %in% names(generated)) generated$group else NA_integer_
+        }
+        data_rows[[di]] <- data_row
       }
       for (a in adapters) {
         fseed <- .gt_seed_for(seed_map, s$id, r, paste0("fit:", a$id))
@@ -1076,12 +1594,14 @@ gt_export <- function(study, path) {
             normal.kind = "Inversion",
             sample.kind = "Rejection"
           )
-          # Deliberately construct a new two-column object for each adapter.
-          supplied <- data.frame(
-            x = generated$x,
-            y = generated$y,
-            stringsAsFactors = FALSE
-          )
+          # Each adapter gets a fresh family-specific frame with no truth.
+          supplied <- if (identical(s$family, "random_intercept")) {
+            data.frame(x = generated$x, y = generated$y,
+                       group = generated$group, stringsAsFactors = FALSE)
+          } else {
+            data.frame(x = generated$x, y = generated$y,
+                       stringsAsFactors = FALSE)
+          }
           raw <- tryCatch(a$fit(supplied), error = function(e) e)
           if (inherits(raw, "error")) {
             status <- "fit_error"
@@ -1090,6 +1610,29 @@ gt_export <- function(study, path) {
             checked <- tryCatch(.gt_result_checked(raw), error = function(e) {
               list(ok = FALSE, message = conditionMessage(e))
             })
+            if (checked$ok) {
+              required <- .gt_family_targets(s$family)
+              estimate_names <- names(checked$estimates)
+              if (length(estimate_names) != length(required) ||
+                  !setequal(estimate_names, required)) {
+                checked <- list(ok = FALSE, message = sprintf(
+                  "Fitter estimates must contain exactly: %s.",
+                  paste(required, collapse = ", ")
+                ))
+              } else if (identical(s$family, "random_intercept") &&
+                         (checked$estimates[["sigma2"]] <= 0 ||
+                          checked$estimates[["tau2"]] < 0)) {
+                checked <- list(ok = FALSE,
+                                message = "Variance targets require sigma2 > 0 and tau2 >= 0.")
+              } else if (identical(s$family, "random_intercept") &&
+                         is.data.frame(checked$raw_intervals) &&
+                         any(checked$raw_intervals$target %in% c("sigma2", "tau2") |
+                               is.na(checked$raw_intervals$target) |
+                               !checked$raw_intervals$target %in% required)) {
+                checked <- list(ok = FALSE,
+                                message = "Intervals are not expected for variance or undeclared targets.")
+              }
+            }
             if (!checked$ok) {
               status <- "invalid_estimate"
               message <- checked$message
@@ -1120,7 +1663,9 @@ gt_export <- function(study, path) {
           truth,
           checked,
           identical(status, "ok"),
-          message
+          message,
+          target_map[[s$id]],
+          extended
         )
       }
     }
@@ -1128,13 +1673,15 @@ gt_export <- function(study, path) {
   data <- if (length(data_rows)) {
     do.call(rbind, data_rows)
   } else {
-    data.frame(
+    empty_data <- data.frame(
       scenario = character(),
       rep = integer(),
       row = integer(),
       x = numeric(),
       y = numeric()
     )
+    if (extended) empty_data$group <- integer()
+    empty_data
   }
   ledger <- do.call(rbind, ledger_rows)
   targets <- do.call(rbind, target_rows)
@@ -1149,6 +1696,8 @@ gt_export <- function(study, path) {
         kind = c("Mersenne-Twister", "Inversion", "Rejection")
       ),
       seed_map = seed_map,
+      target_map = target_map,
+      target_selection = target_selection,
       data = data,
       ledger = ledger,
       targets = targets,
@@ -1157,11 +1706,23 @@ gt_export <- function(study, path) {
         version = .gt_source_identity()$package_version,
         source_sha256 = .gt_source_identity()$source_sha256,
         source_scope = .gt_source_identity()$source_scope,
-        data_source = "independent R family-specific generator v1",
-        families = stats::setNames(lapply(scenarios, function(s) list(
-          family = s$family,
-          model = if (s$family == "gaussian") "y=alpha+beta*x+sigma*error; independent standard normal x,error" else "y~Bernoulli(plogis(alpha+beta*x)); independent standard normal x"
-        )), vapply(scenarios, `[[`, "", "id")),
+        data_source = if (extended) "independent R family-specific generator v2" else "independent R family-specific generator v1",
+        generator_revision = if (extended) "random-intercept-v2" else NULL,
+        families = stats::setNames(lapply(scenarios, function(s) {
+          family <- list(
+            family = s$family,
+            model = switch(s$family,
+              gaussian = "y=alpha+beta*x+sigma*error; independent standard normal x,error",
+              logistic = "y~Bernoulli(plogis(alpha+beta*x)); independent standard normal x",
+              random_intercept = "y_ij=alpha+beta*x_ij+u_j+epsilon_ij; independent normal x,u,epsilon"
+            )
+          )
+          if (s$family == "random_intercept") {
+            family$group_sizes <- s$group_sizes
+            family$x_level <- s$x_level
+          }
+          family
+        }), vapply(scenarios, `[[`, "", "id")),
         model = "family-specific declared scenario model",
         r_version = R.version.string,
         reference = "https://github.com/itchyshin/GroundTruth.jl",
@@ -1222,12 +1783,29 @@ gt_export <- function(study, path) {
   adapters <- .gt_adapters(study$adapters)
   reps <- .gt_reps(study$reps)
   master <- .gt_master_seed(study$master_seed)
+  target_selection <- study$target_selection
+  target_map <- study$target_map
+  expected_target_map <- .gt_resolve_targets(scenarios, target_selection)
+  if (is.null(target_map)) target_map <- expected_target_map
+  if (!identical(target_map, expected_target_map)) {
+    stop("Study target selection does not match its scenarios.", call. = FALSE)
+  }
   .gt_validate_seed_map(
     study$seed_map,
     .gt_seed_map(scenarios, adapters, reps, master)
   )
+  extended <- any(vapply(scenarios, function(s) s$family == "random_intercept", logical(1)))
+  data_schema <- c("scenario", "rep", "row", "x", "y")
+  target_schema <- c(
+    "scenario", "rep", "adapter", "target", "level", "truth", "estimate",
+    "lower", "upper", "usable_interval", "covered"
+  )
+  if (extended) {
+    data_schema <- c(data_schema, "group")
+    target_schema <- c(target_schema, "interval_expected")
+  }
   schemas <- list(
-    data = c("scenario", "rep", "row", "x", "y"),
+    data = data_schema,
     ledger = c(
       "scenario",
       "rep",
@@ -1237,19 +1815,7 @@ gt_export <- function(study, path) {
       "status",
       "message"
     ),
-    targets = c(
-      "scenario",
-      "rep",
-      "adapter",
-      "target",
-      "level",
-      "truth",
-      "estimate",
-      "lower",
-      "upper",
-      "usable_interval",
-      "covered"
-    )
+    targets = target_schema
   )
   for (nm in names(schemas)) {
     if (
@@ -1259,10 +1825,21 @@ gt_export <- function(study, path) {
       stop(sprintf("Study has invalid %s schema.", nm), call. = FALSE)
     }
   }
+  if (extended && nrow(study$data)) {
+    families <- stats::setNames(
+      vapply(scenarios, `[[`, "", "family"),
+      vapply(scenarios, `[[`, "", "id")
+    )
+    is_ri <- unname(families[study$data$scenario] == "random_intercept")
+    if (anyNA(study$data$group[is_ri]) || any(!is.na(study$data$group[!is_ri]))) {
+      stop("Grouped data must have group labels only for random-intercept scenarios.",
+           call. = FALSE)
+    }
+  }
   invisible(TRUE)
 }
 .gt_scenarios_frame <- function(scenarios) {
-  data.frame(
+  ans <- data.frame(
     id = vapply(scenarios, `[[`, "", "id"),
     n = vapply(scenarios, `[[`, integer(1), "n"),
     alpha = vapply(scenarios, `[[`, numeric(1), "alpha"),
@@ -1271,6 +1848,21 @@ gt_export <- function(study, path) {
     family = vapply(scenarios, `[[`, "", "family"),
     stringsAsFactors = FALSE
   )
+  if (any(vapply(scenarios, function(s) s$family == "random_intercept", logical(1)))) {
+    ans$n_groups <- vapply(scenarios, function(s) {
+      if (is.null(s$n_groups)) NA_integer_ else s$n_groups
+    }, integer(1))
+    ans$group_sizes <- vapply(scenarios, function(s) {
+      if (is.null(s$group_sizes)) NA_character_ else paste(s$group_sizes, collapse = ";")
+    }, "")
+    ans$tau <- vapply(scenarios, function(s) {
+      if (is.null(s$tau)) NA_real_ else s$tau
+    }, numeric(1))
+    ans$x_level <- vapply(scenarios, function(s) {
+      if (is.null(s$x_level)) NA_character_ else s$x_level
+    }, "")
+  }
+  ans
 }
 .gt_csv_value <- function(x) {
   if (is.integer(x)) {

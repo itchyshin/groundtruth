@@ -21,7 +21,11 @@ Export a study as CSV files and a base-R manifest
 Writes data.csv, attempts.csv, targets.csv, summary.csv,
 seed-map.csv, scenarios.csv and manifest.R with versioned schemas, full
 RNG settings/map, character master seed, SHA256 file hashes, adapter metadata
-and provenance. Source identity is the SHA256 of the sole implementation
+and provenance. Ordinary-only studies use export schema v2; random-intercept
+studies use v4, which records \code{x_level} in scenarios.csv and generator
+revision \code{random-intercept-v2}. Earlier v3 artifacts remain valid as
+artifacts. Source
+identity is the SHA256 of the sole implementation
 file, R/groundtruth.R, recorded when the package is prepared. It identifies
 the study producer separately from the exporter.
 The CSV writer retains at least 17 significant digits;
