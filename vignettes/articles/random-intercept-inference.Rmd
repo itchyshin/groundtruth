@@ -1,0 +1,123 @@
+---
+title: "Compare random-intercept inference choices"
+output: html_document
+---
+
+The optional Gaussian random-intercept adapter separates the variance-fitting
+criterion from the fixed-effect interval method. `criterion` is either `"ML"` or
+`"REML"`; `interval_method` is either `"normal"` or `"profile"`. Profile intervals
+are available only with ML. Every accepted fit returns point estimates for `alpha`,
+`beta`, `sigma2` and `tau2`. Only the two fixed effects receive intervals, at both
+90% and 95% from the same fit. Variance targets remain point-only.
+
+## Put the methods in one paired study
+
+Install the optional `lme4` package separately before fitting this model. The following
+example fits ML normal, REML normal and ML profile intervals on the same generated
+data in each replication. The four repetitions show how to call the API; they are far
+too few to assess calibration. The example chunk is not evaluated when the article is
+built.
+
+```{r inference-study, eval=FALSE}
+library(groundtruth)
+
+scenario <- gt_ri_scenario("inference-example", n_groups = 20L,
+                           group_sizes = 6L, alpha = 1, beta = 0.7,
+                           sigma = 1, tau = 0.5,
+                           x_level = "observation")
+adapters <- list(
+  gt_lmm_adapter("ml-normal", criterion = "ML",
+                 interval_method = "normal"),
+  gt_lmm_adapter("reml-normal", criterion = "REML",
+                 interval_method = "normal"),
+  gt_lmm_adapter("ml-profile", criterion = "ML",
+                 interval_method = "profile", profile_timeout = 60)
+)
+study <- gt_runstudy(scenario, adapters = adapters, reps = 4L,
+                     seed = "20261017")
+
+ml_vs_reml <- gt_compare_inference(study, "ml-normal", "reml-normal")
+ml_vs_profile <- gt_compare_inference(study, "ml-normal", "ml-profile")
+details <- gt_inference_details(study)
+head(details)
+```
+
+Each comparison is a paired comparison within one study. The helper checks that each
+method has one target row for every matching scenario, replication, coefficient and
+level, and checks the planned replication schedule or attempt ledger when present.
+Its differences are comparison minus baseline. Review `schedule_verified` before
+interpreting the result; equal replication numbers from separate studies do not prove
+that the methods received the same data.
+
+## Read both coverage denominators
+
+`baseline_coverage` and `comparison_coverage` condition on a finite usable interval
+from the corresponding method. The finite covered-interval yield divides the number
+of finite intervals containing truth by all scheduled attempts. A failed fit, missing
+interval, nonfinite endpoint, unbounded set or incomplete profile contributes zero
+when no usable finite interval is recorded. A missing companion leaves its diagnostic
+state unknown. Legacy intervals still contribute when their usable-interval flag is
+true; an unknown diagnostic state does not imply an unbounded set or a missing
+finite interval. Conditional coverage can
+therefore look high even when many attempts have no usable interval; yield retains
+that loss in its denominator.
+
+`coverage_difference_mcse` is a paired first-order ratio/delta-method Monte Carlo
+standard error. `finite_yield_difference_mcse` is the sample standard deviation of
+paired covered-per-attempt indicators divided by the square root of the attempt count.
+These MCSEs describe asymptotic uncertainty from the finite simulation; they do not
+show that either interval method is calibrated. A missing coverage or MCSE means the
+required denominator or sample size is unavailable, not zero coverage. The optional
+joint width difference uses only replications with usable finite intervals under both
+methods and is descriptive.
+
+`gt_inference_details()` gives one row per recorded coefficient interval, with the
+scenario, replication, adapter, target, nominal level, state, criterion, method,
+endpoints, root-LR residual, endpoint distance, elapsed time and message when available.
+The states are `finite`,
+`unbounded`, `incomplete`, `error`, `timeout` and `invalid`. An absent state row is
+unknown; it is not evidence of an unbounded interval. Only finite ordered endpoints
+enter the legacy usable-interval coverage denominator. A timeout or failed search is
+not evidence that the confidence set is unbounded. If profiling fails after the point
+fit was accepted, the point estimates remain available and the interval state records
+the failure.
+
+## How the two interval methods work
+
+With `interval_method = "normal"`, the adapter reconstructs the fixed-effect
+covariance at the selected ML or REML variance estimates as
+`(X' V^-1 X)^-1`. It uses normal quantiles at 90% and 95%, with no Student t correction
+and no extra residual-scale multiplier. These are approximate plug-in intervals.
+
+With `criterion = "ML"` and `interval_method = "profile"`, the adapter profiles the
+likelihood for each fixed effect. The endpoints use asymptotic likelihood-ratio
+cutoffs. ML normal and ML profile use the same point-estimation procedure; their paired
+comparison concerns interval construction, not two independent estimators. They do not
+establish small-sample coverage, and a finite profile is not guaranteed.
+`criterion = "REML"` with `interval_method = "profile"` is rejected. ML and REML use
+different objective functions, so their objective values should not be compared by
+magnitude.
+
+Fit diagnostics record the objective convention. The REML negative log likelihood
+includes `log|X' V^-1 X|` in addition to the covariance determinant and residual
+quadratic, under the documented explicit Gaussian convention. Its magnitude cannot
+be ranked against the ML objective.
+
+The hard profile deadline covers profiling after the accepted base fit. It requires
+POSIX process support; on unsupported platforms profiling records error states while
+preserving accepted point estimates. The deadline does not limit time spent in the
+base fit.
+
+The design can limit information about the group variance. With two groups and a
+predictor constant within each group, the REML likelihood is flat in `tau2` at fixed
+`sigma2`. In that case, the reported `tau2` and its plug-in fixed-effect covariance
+depend on the arbitrary fitted value. Do not interpret this as variance recovery or
+require agreement between engines. This information limit is distinct from a singular
+`tau2 = 0` fit or residual-variance collapse. Two groups, within-group replication
+and a full-rank fixed-effect design do not by themselves prove that both variance
+components are identifiable.
+
+The [reliability map](random-intercept-reliability.html) describes the earlier ML
+normal-interval study. It does not evaluate REML or profile intervals. The
+comparison helper reports paired finite-sample summaries; it does not designate a
+calibrated method.

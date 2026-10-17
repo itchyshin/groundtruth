@@ -1,4 +1,5 @@
 ^\.unlazy($|/)
+^audit($|/)
 ^docs($|/)
 ^scripts($|/)
 ^work$

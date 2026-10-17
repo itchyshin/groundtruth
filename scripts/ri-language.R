@@ -8,7 +8,9 @@ testthat::test_dir(
   reporter = "summary",
   stop_on_failure = TRUE
 )
-source(file.path("R", "groundtruth.R"), local = .GlobalEnv)
+for (source_file in sort(list.files("R", pattern = "\\.R$", full.names = TRUE))) {
+  source(source_file, local = .GlobalEnv)
+}
 
 fixture_dir <- file.path("tests", "testthat", "fixtures", "ri")
 fixture_files <- c(

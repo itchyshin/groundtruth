@@ -200,7 +200,17 @@ for page in [root / "README.md", *root.glob("vignettes/**/*.Rmd")]:
             continue
         path, _, anchor = target.partition("#")
         linked = (page.parent / path).resolve()
-        assert linked.exists(), f"broken local source link in {page}: {target}"
+        if linked.suffix.lower() == ".html":
+            # pkgdown publishes configured article Rmd sources as HTML pages.
+            source = linked.with_suffix(".Rmd")
+            article_key = source.relative_to(root / "vignettes").with_suffix("").as_posix()
+            config = (root / "_pkgdown.yml").read_text(errors="replace")
+            assert re.search(rf"(?m)^\s*-?\s*contents:\s*\[[^]]*\b{re.escape(article_key)}\b", config), \
+                f"HTML link has no matching configured article: {target}"
+            assert source.is_file(), f"broken local source link in {page}: {target}"
+            linked = source
+        else:
+            assert linked.exists(), f"broken local source link in {page}: {target}"
         if anchor and linked.suffix.lower() in {".md", ".rmd"}:
             heading = linked.read_text(errors="replace")
             slug = re.sub(r"[^a-z0-9 -]", "", anchor.lower()).replace(" ", "-")
