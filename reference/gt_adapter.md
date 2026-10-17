@@ -82,7 +82,7 @@ gt_adapter()
 #>         covariance = covariance, se = se, predictions = stats::fitted(fit), 
 #>         residuals = stats::residuals(fit)))
 #> }
-#> <bytecode: 0x561ed84e44e8>
+#> <bytecode: 0x5607aa1d29a0>
 #> <environment: namespace:groundtruth>
 #> 
 #> $metadata

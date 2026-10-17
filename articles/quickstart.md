@@ -282,7 +282,7 @@ separately reports literal zero and the near-boundary ICC threshold, so
 those flags should not be equated across engines. Failed fits remain in
 the ledger. The two-repetition example explains the interface and does
 not assess calibration. The separate [finite-design reliability
-map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.Rmd)
+map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.md)
 retains 60,000 attempts across 15 scenarios, including failed fits,
 few-group undercoverage and numerical tolerance exceedances. Strict
 parity and universal calibration are not established.

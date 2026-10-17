@@ -19,6 +19,7 @@
 <li class="nav-item dropdown">
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><a class="dropdown-item" href="../articles/quickstart.html">Paired data, replay and honest denominators</a></li>
+    <li><a class="dropdown-item" href="../articles/random-intercept-inference.html">Compare random-intercept inference choices</a></li>
     <li><a class="dropdown-item" href="../articles/random-intercept-reliability.html">Gaussian random-intercept reliability map</a></li>
   </ul></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -42,7 +43,13 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">gt_lmm_adapter</span><span class="op">(</span>id <span class="op">=</span> <span class="st">"lmer"</span>, metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">gt_lmm_adapter</span><span class="op">(</span></span>
+<span>  id <span class="op">=</span> <span class="st">"lmer"</span>,</span>
+<span>  metadata <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  criterion <span class="op">=</span> <span class="st">"ML"</span>,</span>
+<span>  interval_method <span class="op">=</span> <span class="st">"normal"</span>,</span>
+<span>  profile_timeout <span class="op">=</span> <span class="fl">60</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -56,10 +63,33 @@
 <dt id="arg-metadata">metadata<a class="anchor" aria-label="anchor" href="#arg-metadata"></a></dt>
 <dd><p>Descriptive metadata.</p></dd>
 
+
+<dt id="arg-criterion">criterion<a class="anchor" aria-label="anchor" href="#arg-criterion"></a></dt>
+<dd><p>Either <code>"ML"</code> or <code>"REML"</code> for the variance fit.</p></dd>
+
+
+<dt id="arg-interval-method">interval_method<a class="anchor" aria-label="anchor" href="#arg-interval-method"></a></dt>
+<dd><p>Either <code>"normal"</code> or <code>"profile"</code> for fixed effects.
+Profile intervals are available only with ML.</p></dd>
+
+
+<dt id="arg-profile-timeout">profile_timeout<a class="anchor" aria-label="anchor" href="#arg-profile-timeout"></a></dt>
+<dd><p>Positive finite wall deadline, in seconds, for the
+isolated native profile helper, including helper startup.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>A <code>random_intercept</code> <code>gt_adapter</code> using <code><a href="https://rdrr.io/pkg/lme4/man/lmer.html" class="external-link">lme4::lmer</a></code> with ML.</p>
+    <p>A <code>random_intercept</code> <code>gt_adapter</code> using <code><a href="https://rdrr.io/pkg/lme4/man/lmer.html" class="external-link">lme4::lmer</a></code>.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Fixed-effect normal intervals use the independently reconstructed
+covariance at the selected ML or REML variance estimates. Profile
+intervals use native ML likelihood profiles. A profile failure retains
+accepted estimates and records typed interval states in
+<code><a href="gt_inference_details.html">gt_inference_details()</a></code>. Adapter metadata records the chosen method and
+lme4 version; names beginning <code>gt_inference_</code> are reserved.</p>
     </div>
 
     <div class="section level2">

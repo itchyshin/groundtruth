@@ -5,8 +5,11 @@ attempt. It separates data generation from fitting, gives adapters
 paired observations, and reports the denominators behind interval
 coverage. Established workflows support Gaussian linear regression and
 fixed-effect logistic scenarios through a native R adapter. An optional
-Gaussian random-intercept ML workflow also reports coefficient and
-variance targets; its [finite-design reliability
+Gaussian random-intercept workflow also reports coefficient and variance
+targets. Its [inference comparison
+guide](https://itchyshin.github.io/groundtruth/articles/random-intercept-inference.html)
+explains ML/REML and coefficient-interval choices. The [finite-design
+reliability
 map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.html)
 retains failures, few-group undercoverage and numerical discrepancies.
 
@@ -245,6 +248,14 @@ fits, numerical tolerance exceedances and poor interval coverage with
 few groups. These findings do not establish package-wide parity or
 universal calibration.
 
+The default adapter fits by ML and uses approximate normal plug-in
+intervals. You can also request REML with normal intervals or ML with
+fixed-effect profile intervals. The [inference comparison
+guide](https://itchyshin.github.io/groundtruth/articles/random-intercept-inference.html)
+shows how to compare these methods on the same simulated data and
+inspect finite, unbounded, incomplete, error, timeout and invalid
+interval outcomes. These options do not establish calibration.
+
 The R diagnostic `exact_zero` uses `tau2 <= 1e-10`. The reliability map
 reports literal zero and near-boundary counts separately. Its frozen
 campaign predates the small-response unit correction to the R
@@ -281,6 +292,10 @@ and the distinction from a new campaign.
   : Summarize simulation-study performance
 - [`gt_export()`](https://itchyshin.github.io/groundtruth/reference/gt_export.md)
   : Export a study as CSV files and a base-R manifest
+- [`gt_inference_details()`](https://itchyshin.github.io/groundtruth/reference/gt_inference_details.md)
+  : Inspect typed inference outcomes without changing target schemas
+- [`gt_compare_inference()`](https://itchyshin.github.io/groundtruth/reference/gt_compare_inference.md)
+  : Compare two methods on paired study attempts
 
 # Articles
 
@@ -288,5 +303,7 @@ and the distinction from a new campaign.
 
 - [Paired data, replay and honest
   denominators](https://itchyshin.github.io/groundtruth/articles/quickstart.md):
+- [Compare random-intercept inference
+  choices](https://itchyshin.github.io/groundtruth/articles/random-intercept-inference.md):
 - [Gaussian random-intercept reliability
   map](https://itchyshin.github.io/groundtruth/articles/random-intercept-reliability.md):

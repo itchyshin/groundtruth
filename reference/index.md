@@ -28,3 +28,7 @@
   : Summarize simulation-study performance
 - [`gt_export()`](https://itchyshin.github.io/groundtruth/reference/gt_export.md)
   : Export a study as CSV files and a base-R manifest
+- [`gt_inference_details()`](https://itchyshin.github.io/groundtruth/reference/gt_inference_details.md)
+  : Inspect typed inference outcomes without changing target schemas
+- [`gt_compare_inference()`](https://itchyshin.github.io/groundtruth/reference/gt_compare_inference.md)
+  : Compare two methods on paired study attempts
