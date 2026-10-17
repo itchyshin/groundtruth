@@ -2,13 +2,14 @@
 % Please edit documentation in R/groundtruth.R
 \name{gt_runstudy}
 \alias{gt_runstudy}
-\title{Run a reproducible Gaussian or logistic simulation study}
+\title{Run a reproducible simulation study}
 \usage{
 gt_runstudy(
   scenarios,
   adapters = list(gt_adapter()),
   reps = 10L,
-  seed = "20261004"
+  seed = "20261004",
+  targets = NULL
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ gt_runstudy(
 retain every digit, including labels above 2^53; numeric inputs must be
 exact
 integers no larger than 2^53.}
+
+\item{targets}{Optional target subset. When \code{NULL}, each scenario uses the
+complete default target set for its family. An explicit subset must be
+supported by every scenario in the study.}
 }
 \value{
 A \code{gt_study} list containing \code{scenarios}, \code{adapters}, \code{reps},
@@ -29,7 +34,7 @@ A \code{gt_study} list containing \code{scenarios}, \code{adapters}, \code{reps}
 \code{provenance}.
 }
 \description{
-Run a reproducible Gaussian or logistic simulation study
+Run a reproducible simulation study
 }
 \details{
 R streams use groundtruth-r-rng-v1: SHA256 of length-prefixed UTF8
@@ -41,6 +46,9 @@ Calls restore caller RNG kinds and seed (including absence) on success and
 error. Ambient Box-Muller is refused before mutation because cached normal
 state cannot be safely restored. Reordering the same input set is invariant;
 adding keys may change rare collision allocations. R and Julia draws differ.
+Random-intercept studies record \code{x_level} and generator revision
+\code{random-intercept-v2} in scenario metadata and provenance. Legacy R scenarios
+without \code{x_level} normalize to observation-level predictors on replay.
 }
 \examples{
 study <- gt_runstudy(gt_scenario("example", n = 12L), reps = 2L)

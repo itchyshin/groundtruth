@@ -10,11 +10,13 @@ navbar:
     left: [intro, reference, articles]
     right: [search, github]
 reference:
-- title: Define a comparison
-  contents: [gt_scenario, gt_adapter, gt_glm_adapter, gt_result]
-- title: Run and inspect
-  contents: [gt_runstudy, gt_replay, gt_summarize, gt_export]
+  - title: Define a comparison
+    contents: [gt_scenario, gt_adapter, gt_glm_adapter, gt_result]
+  - title: Gaussian random-intercept design
+    contents: [gt_ri_scenario, gt_lmm_adapter]
+  - title: Run and inspect
+    contents: [gt_runstudy, gt_replay, gt_summarize, gt_export]
 articles:
 - title: Work with a study
   navbar: ~
-  contents: [articles/quickstart]
+  contents: [articles/quickstart, articles/random-intercept-reliability]

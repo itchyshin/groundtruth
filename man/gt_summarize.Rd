@@ -26,7 +26,9 @@ covered_per_attempt uses all attempts. Coverage uncertainty has a Wilson 95\%
 Monte Carlo interval. All-failed bias/RMSE/conditional coverage are NA and
 covered_per_attempt is zero. Singleton MCSE is NA; zero RMSE with k > 1
 has MCSE zero. These are Monte Carlo uncertainty summaries, not a claim
-of estimator calibration.
+of estimator calibration. In random-intercept studies, variance targets
+are point-only and have no expected intervals; their coverage fields are
+\code{NA} and they do not enter interval denominators.
 }
 \examples{
 study <- gt_runstudy(gt_scenario("example"), reps = 2L)

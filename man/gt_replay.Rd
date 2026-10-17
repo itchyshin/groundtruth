@@ -22,6 +22,9 @@ Only the recognized recorded RNG version/settings are accepted.
 Replay validates and reuses the full map. Deterministic/stateless adapters
 replay in the same environment; external inputs and closure state remain
 the caller's responsibility.
+Random-intercept scenarios record \code{x_level} and generator revision
+\code{random-intercept-v2}. Legacy R scenarios without \code{x_level} normalize to
+observation-level predictors during replay.
 }
 \examples{
 study <- gt_runstudy(gt_scenario("example"), reps = 1L)

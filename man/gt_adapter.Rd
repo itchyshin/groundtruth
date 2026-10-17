@@ -14,7 +14,7 @@ gt_adapter(id = "lm", fit = NULL, metadata = list(), family = "gaussian")
 
 \item{metadata}{A list of descriptive metadata.}
 
-\item{family}{Either \code{"gaussian"} or \code{"logistic"}.}
+\item{family}{A supported scenario family.}
 }
 \value{
 A \code{gt_adapter} object with its declared family.
@@ -25,8 +25,9 @@ Define a fitting adapter
 \details{
 The default Gaussian fitter uses \code{stats::lm} with an intercept and
 slope, estimates residual variance as SSE / (n - 2), and returns 90\% and
-95\% Student t intervals. Logistic fitters must be supplied explicitly or
-created with \code{\link[=gt_glm_adapter]{gt_glm_adapter()}}. Truth is withheld from every fitter.
+95\% Student t intervals. Logistic and random-intercept fitters must be
+supplied explicitly or created with \code{\link[=gt_glm_adapter]{gt_glm_adapter()}} and
+\code{\link[=gt_lmm_adapter]{gt_lmm_adapter()}}. Truth is withheld from every fitter.
 }
 \examples{
 gt_adapter()

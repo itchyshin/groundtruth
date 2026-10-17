@@ -13,7 +13,7 @@ gt_result(
 )
 }
 \arguments{
-\item{estimates}{Named numeric estimates for \code{alpha} and \code{beta}.}
+\item{estimates}{A non-empty named numeric vector of finite estimates.}
 
 \item{intervals}{Optional data frame with target, level, lower, and upper
 columns.}
@@ -32,8 +32,9 @@ and optional diagnostics.
 Construct a fitting result
 }
 \details{
-Estimates must name \code{alpha} and \code{beta} exactly once. Missing,
-duplicate, extra or nonfinite point targets reject the result. Intervals
+Estimate names must be unique, non-empty, and finite. The runner
+checks that names match the complete target set for the scenario family.
+Missing, duplicate, or nonfinite estimates reject the result. Intervals
 use columns \code{target}, \code{level}, \code{lower}, \code{upper}, at levels 0.90 and 0.95.
 Missing, duplicate, nonfinite or reversed intervals retain accepted points
 and exclude the affected interval. Malformed or unsupported interval labels
