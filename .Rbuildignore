@@ -6,6 +6,7 @@
 ^\.gitignore$
 ^\.git$
 ^\.github$
+^codecov\.yml$
 ^DELIVERY\.md$
 ^CONTRACT\.md$
 ^PLAN\.md$
